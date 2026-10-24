@@ -21,6 +21,7 @@ O desenvolvimento será feito inicialmente no Windows, utilizando Docker para ex
 - VS Code e Claude Code como ferramentas de desenvolvimento.
 - Git para versionamento.
 - Testes executados preferencialmente dentro do mesmo ambiente Python utilizado pela aplicação.
+- Banco de dados: PostgreSQL em container Docker (serviço `db` no Compose), com volume persistente.
 
 **Produção futura:**
 
@@ -156,7 +157,7 @@ Mantenha a arquitetura simples.
 
 - **FastAPI:** backend e endpoints HTTP.
 - **HTML/CSS/JavaScript simples:** interface inicial.
-- **SQLite:** usuários, perfis, permissões, metadados e auditoria inicialmente.
+- **PostgreSQL:** usuários, perfis, permissões, metadados e auditoria. Roda como serviço próprio no Docker Compose, sem porta pública, com usuário de aplicação de privilégios limitados. (Decisão revisada em 2026-10-24: substitui a escolha original de SQLite — ver `docs/escopo_e_roteiro.md`. Modelo de dados permanece com usuários individuais, sem organizações/multi-tenant por enquanto.)
 - **MinIO:** armazenamento de arquivos originais.
 - **psutil:** métricas de CPU, memória, disco e rede.
 - **Docker:** ambiente de desenvolvimento reproduzível e execução da aplicação.
@@ -274,6 +275,8 @@ Registre:
 A documentação deve refletir o estado real do projeto. Não registrar como concluído algo que não foi testado ou cujo resultado não foi observado.
 
 O `README.md` deve conter instruções atualizadas para preparar o ambiente, construir a imagem, iniciar a aplicação, executar os testes e encerrar os serviços de desenvolvimento.
+
+Sempre que uma etapa adicionar ou alterar um endpoint da API, registre em `docs/testes_manuais.md` um exemplo de `curl` (ou comando equivalente) para testá-lo manualmente, incluindo o caso de sucesso e pelo menos um caso de erro relevante (ex: acesso negado). Valide o exemplo contra a aplicação real antes de registrá-lo — não documentar um comando que não foi executado.
 
 ## 11. Roteiro inicial autorizado
 
