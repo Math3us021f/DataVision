@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block body %}
+<header class="topbar">
+    <span class="topbar__brand">DataVision · Admin</span>
+    <nav class="topbar__nav">
+        <a href="/">Início</a>
+        <a href="/admin/users" class="{% if active == 'users' %}is-active{% endif %}">Usuários</a>
+        <a href="/admin/metrics" class="{% if active == 'metrics' %}is-active{% endif %}">Métricas</a>
+        <a href="/admin/logs" class="{% if active == 'logs' %}is-active{% endif %}">Logs</a>
+        <a href="/admin/files" class="{% if active == 'files' %}is-active{% endif %}">Arquivos</a>
+    </nav>
+    <span class="topbar__user">{{ user.username }}</span>
+</header>
+<main class="admin-page">
+    {% block content %}{% endblock %}
+</main>
+{% endblock %}

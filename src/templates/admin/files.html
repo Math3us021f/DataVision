@@ -1,0 +1,40 @@
+{% extends "admin/base_admin.html" %}
+{% set active = "files" %}
+
+{% block title %}Arquivos — DataVision Admin{% endblock %}
+
+{% block content %}
+<h1>Explorador de arquivos</h1>
+<p class="notice">Somente leitura, restrito à pasta <code>data/</code>. Só arquivos <code>.csv</code>, <code>.txt</code> e <code>.json</code> de até 1 MB podem ser abertos.</p>
+
+<div class="files-layout">
+    <section class="card card--wide">
+        <nav id="breadcrumb" class="breadcrumb"></nav>
+        <p id="files-error" class="error" hidden></p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Tamanho</th>
+                </tr>
+            </thead>
+            <tbody id="files-table-body"></tbody>
+        </table>
+        <p id="files-empty" class="muted" hidden>Pasta vazia.</p>
+    </section>
+
+    <section class="card card--wide" id="viewer" hidden>
+        <div class="page-header">
+            <h2 id="viewer-title"></h2>
+            <button type="button" id="viewer-close" class="button--small">Fechar</button>
+        </div>
+        <p id="viewer-error" class="error" hidden></p>
+        <pre id="viewer-content" class="file-content"></pre>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/api.js"></script>
+<script src="/static/js/admin_files.js"></script>
+{% endblock %}

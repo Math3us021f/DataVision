@@ -1,0 +1,48 @@
+{% extends "admin/base_admin.html" %}
+{% set active = "metrics" %}
+
+{% block title %}Métricas — DataVision Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Métricas do sistema</h1>
+    <span id="metrics-updated" class="muted"></span>
+</div>
+
+<p id="metrics-scope" class="notice"></p>
+<p id="metrics-error" class="error" hidden></p>
+
+<div class="metrics-grid">
+    <section class="card metric">
+        <h2>CPU</h2>
+        <p class="metric__value" id="cpu-value">—</p>
+        <div class="bar"><div class="bar__fill" id="cpu-bar"></div></div>
+    </section>
+
+    <section class="card metric">
+        <h2>Memória</h2>
+        <p class="metric__value" id="memory-value">—</p>
+        <div class="bar"><div class="bar__fill" id="memory-bar"></div></div>
+        <p class="metric__detail" id="memory-detail"></p>
+    </section>
+
+    <section class="card metric">
+        <h2>Disco</h2>
+        <p class="metric__value" id="disk-value">—</p>
+        <div class="bar"><div class="bar__fill" id="disk-bar"></div></div>
+        <p class="metric__detail" id="disk-detail"></p>
+    </section>
+
+    <section class="card metric">
+        <h2>Rede</h2>
+        <p class="metric__detail">Enviado: <span id="net-sent">—</span></p>
+        <p class="metric__detail">Recebido: <span id="net-recv">—</span></p>
+        <p class="metric__detail muted">Total acumulado desde que o ambiente subiu.</p>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/api.js"></script>
+<script src="/static/js/admin_metrics.js"></script>
+{% endblock %}

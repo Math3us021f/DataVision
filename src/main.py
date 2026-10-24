@@ -2,6 +2,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.auth import (
@@ -20,6 +21,7 @@ from src.routers.files import router as files_router
 from src.routers.logs import router as logs_router
 from src.routers.metrics import router as metrics_router
 from src.routers.users import router as users_router
+from src.routers.web import router as web_router
 from src.storage import ensure_bucket
 
 
@@ -120,6 +122,8 @@ app.include_router(metrics_router)
 app.include_router(logs_router)
 app.include_router(files_router)
 app.include_router(datasets_router)
+app.include_router(web_router)
+app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
 
 @app.get("/health")

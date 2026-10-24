@@ -40,9 +40,20 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
 - Nenhuma suíte de testes automatizados existe ainda (pendente desde a Etapa 2).
 - Porta 8000 publicada em todas as interfaces do host (aceitável em desenvolvimento local, revisar antes de qualquer exposição além da rede local).
 
+## Frontend (em andamento)
+
+- Concluído em 2026-10-24: página de login (`GET /login`), home (`GET /`) com redirecionamentos conforme sessão, logout. HTML com Jinja2 (`src/templates/`), CSS e JS puros (`src/static/`), sem build step. Testado no navegador embutido (login com senha errada mostra erro; senha certa leva à home; logout volta ao login; acesso a `/` sem sessão redireciona). 59 testes passando no total (5 novos em `tests/test_web.py`).
+- Concluído em 2026-10-24: página de usuários do módulo administrador (`GET /admin/users`; `GET /admin` redireciona para ela). Lista, cria e ativa/desativa usuários consumindo a API já existente. Layout próprio do admin (`templates/admin/base_admin.html`) com menu no topo. Link "Módulo administrador" na home aparece só para admin. Acesso: sem sessão → `/login`; usuário comum → `/` (a proteção real continua na API, via `require_admin`). Dados vindos da API são inseridos com `textContent`, nunca `innerHTML` — testado no navegador cadastrando um usuário chamado `<img src=x onerror=alert(1)>`: aparece como texto, nenhum `<img>` é criado. 64 testes passando no total.
+- Concluído em 2026-10-24: página de métricas (`GET /admin/metrics`) — CPU, memória, disco e rede com barras de uso (amarelo a partir de 70%, vermelho a partir de 90%), exibindo o aviso de escopo container/VM/host que a própria API devolve. Atualiza sozinha a cada 5 s, pausa quando a aba fica em segundo plano e para (mostrando o erro) se a sessão expirar. Verificado no navegador, incluindo a atualização automática. 67 testes passando.
+- Concluído em 2026-10-24: página de logs (`GET /admin/logs`) — últimas N linhas (50 a 1000), mais recentes primeiro, filtro por nível e busca por texto (feitos no navegador, sobre as linhas já carregadas), botão de atualizar. O log contém texto controlado por anônimos (o username digitado num login que falhou), então tudo entra com `textContent`: testado com uma tentativa de login anônima usando `<img src=x onerror=alert(document.cookie)>` como usuário — aparece como texto na página, nenhum `<img>` criado. 70 testes passando.
+- Observação: os horários do log estão em UTC (relógio do container), enquanto o "Atualizado às" usa o horário local do navegador — por isso a diferença de 3 horas. Não alterado ainda.
+- Concluído em 2026-10-24: página do explorador de arquivos (`GET /admin/files`) — navega pelas pastas de `data/` com breadcrumb, pastas primeiro e em ordem alfabética, e abre `.csv`/`.txt`/`.json` num visualizador. A proteção contra path traversal continua no servidor (Etapa 7); o navegador só monta caminhos a partir dos nomes que o servidor listou e sempre os codifica na URL. Testado no navegador: `.txt` com `<img onerror>` e `<script>` dentro aparece como texto (nada é executado); `.env` mostra "Tipo de arquivo não permitido" sem exibir conteúdo. 73 testes passando.
+- **Módulo administrador completo no frontend** (usuários, métricas, logs, arquivos).
+- Pendente: exibição de datasets/perfilamento para o usuário comum.
+
 ## Próximo passo recomendado
 
-Etapa 11 — Dashboards automáticos (geração de dashboards por regras Python a partir do perfilamento já calculado). O roteiro original é explícito: IA generativa só deve ser considerada depois de validar o fluxo determinístico — ou seja, primeiro regras simples, não um LLM.
+Módulo administrador no frontend (páginas consumindo as APIs já existentes). Depois, retomar o módulo de análise de dados (Etapa 11 — dashboards por regras Python, sem IA generativa até o fluxo determinístico estar validado).
 
 ## Pendências técnicas menores
 

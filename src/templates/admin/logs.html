@@ -1,0 +1,49 @@
+{% extends "admin/base_admin.html" %}
+{% set active = "logs" %}
+
+{% block title %}Logs — DataVision Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Logs da aplicação</h1>
+    <span id="logs-updated" class="muted"></span>
+</div>
+
+<section class="card card--wide">
+    <div class="toolbar">
+        <div class="field">
+            <label for="logs-limit">Últimas linhas</label>
+            <select id="logs-limit">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="250">250</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="logs-level">Nível</label>
+            <select id="logs-level">
+                <option value="">Todos</option>
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+        </div>
+        <div class="field field--grow">
+            <label for="logs-search">Buscar</label>
+            <input type="search" id="logs-search" placeholder="ex: Login falhou, username=...">
+        </div>
+        <button id="logs-refresh" type="button">Atualizar</button>
+    </div>
+
+    <p id="logs-summary" class="muted"></p>
+    <p id="logs-error" class="error" hidden></p>
+    <ol id="logs-list" class="log-list"></ol>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/api.js"></script>
+<script src="/static/js/admin_logs.js"></script>
+{% endblock %}

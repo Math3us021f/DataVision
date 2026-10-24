@@ -58,6 +58,17 @@ def get_current_user(session: str | None = Cookie(default=None)) -> dict:
     return user
 
 
+def get_current_user_optional(session: str | None = Cookie(default=None)) -> dict | None:
+    """Como get_current_user, mas devolve None em vez de 401 — para páginas que decidem
+    o que mostrar (ex: redirecionar pro login) em vez de simplesmente barrar o acesso."""
+    if session is None:
+        return None
+    try:
+        return get_current_user(session)
+    except HTTPException:
+        return None
+
+
 def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
     """Dependency do FastAPI: exige sessão válida E que o usuário seja administrador."""
     if not current_user["is_admin"]:

@@ -1,0 +1,50 @@
+{% extends "admin/base_admin.html" %}
+{% set active = "users" %}
+
+{% block title %}Usuários — DataVision Admin{% endblock %}
+
+{% block content %}
+<h1>Usuários</h1>
+
+<section class="card card--wide">
+    <h2>Novo usuário</h2>
+    <form id="create-user-form" class="form form--inline">
+        <div class="field">
+            <label for="new-username">Usuário</label>
+            <input type="text" id="new-username" required>
+        </div>
+        <div class="field">
+            <label for="new-password">Senha</label>
+            <input type="password" id="new-password" autocomplete="new-password" required>
+        </div>
+        <label class="checkbox">
+            <input type="checkbox" id="new-is-admin"> Administrador
+        </label>
+        <button type="submit">Criar</button>
+    </form>
+    <p id="create-user-message" class="message" hidden></p>
+</section>
+
+<section class="card card--wide">
+    <h2>Usuários cadastrados</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="users-table-body"></tbody>
+    </table>
+    <p id="users-error" class="error" hidden></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>window.CURRENT_USERNAME = {{ user.username | tojson }};</script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/admin_users.js"></script>
+{% endblock %}

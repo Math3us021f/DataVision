@@ -162,6 +162,16 @@ curl -s -b cookies.txt "http://localhost:8000/datasets/ID_DO_DATASET/profile"
 - Dataset de outro usuário ou inexistente → `404` (mesma resposta nos dois casos, não revela se existe).
 - `GET` antes de qualquer `POST` → `404` ("ainda não foi perfilado").
 
+## Interface web (navegador)
+
+- `http://localhost:8000/login` — tela de login. Senha errada mostra a mensagem de erro na própria tela.
+- `http://localhost:8000/` — home. Sem sessão, redireciona para o login. Admin vê o botão "Módulo administrador".
+- `http://localhost:8000/admin/users` — gestão de usuários (só admin). Usuário comum é redirecionado para a home.
+- `http://localhost:8000/admin/metrics` — métricas (só admin). O horário "Atualizado às" deve mudar a cada ~5 segundos com a aba aberta.
+- `http://localhost:8000/admin/files` — explorador de arquivos (só admin). Clique numa pasta para entrar, use o breadcrumb para voltar. Abrir `exemplo.env` deve mostrar "Tipo de arquivo não permitido".
+- `http://localhost:8000/admin/logs` — logs (só admin). Teste de XSS via log: tente logar (sem sucesso) com o usuário `<img src=x onerror=alert(1)>`; na página de logs ele deve aparecer como texto, sem disparar alerta.
+- Teste de XSS: crie pela tela um usuário chamado `<img src=x onerror=alert(1)>`. Ele deve aparecer na tabela como texto, sem disparar alerta.
+
 ## Documentação interativa (Swagger)
 
 Em vez de `curl`, também dá para explorar e testar tudo isso visualmente em:

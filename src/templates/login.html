@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar — DataVision{% endblock %}
+
+{% block content %}
+<div class="card card--narrow">
+    <h1>DataVision</h1>
+    <form id="login-form" class="form">
+        <label for="username">Usuário</label>
+        <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+
+        <label for="password">Senha</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+        <p id="login-error" class="error" hidden></p>
+
+        <button type="submit">Entrar</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/api.js"></script>
+<script src="/static/js/login.js"></script>
+{% endblock %}
