@@ -61,8 +61,39 @@ curl -s -i -b cookies.txt -X POST http://localhost:8000/users \
 ## Listar usuários (só admin)
 
 ```bash
-curl -s -b cookies.txt http://localhost:8000/users
+curl -s -b cookies.txt "http://localhost:8000/users?search=admin&status=active&page=1&page_size=20"
 ```
+
+- Resposta: `{"items": [...], "total": N, "page": 1, "page_size": 20}`.
+- `status`: `all`, `active` ou `inactive`. `page_size` acima de 100 → `422`.
+
+## Excluir usuário (só admin)
+
+```bash
+curl -s -i -b cookies.txt -X DELETE http://localhost:8000/users/ID_DO_USUARIO
+```
+
+- Esperado: `204`. A própria conta → `400`. Usuário com datasets → `409`. Inexistente → `404`.
+- A exclusão fica registrada em `audit_logs` (`delete_user`, com id e nome em `details`).
+- Na tela: marque usuários pelas caixas de seleção para ativar, desativar ou excluir em lote.
+
+## Redefinir senha de outro usuário (só admin)
+
+```bash
+curl -s -i -b cookies.txt -X PUT http://localhost:8000/users/2/password \
+  -H "Content-Type: application/json" -d '{"new_password":"nova-senha-123"}'
+```
+
+- Esperado: `204`. Sessões abertas desse usuário deixam de valer. Senha com menos de 8 caracteres → `400`.
+
+## Trocar a própria senha
+
+```bash
+curl -s -i -b cookies.txt -c cookies.txt -X PUT http://localhost:8000/me/password \
+  -H "Content-Type: application/json" -d '{"current_password":"SENHA_ATUAL","new_password":"NOVA_SENHA"}'
+```
+
+- Esperado: `204` e um cookie novo (`-c cookies.txt` guarda). Senha atual errada → `400`. Outras sessões do mesmo usuário passam a receber `401`.
 
 ## Ativar/desativar usuário (só admin)
 

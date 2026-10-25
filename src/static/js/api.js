@@ -21,7 +21,11 @@ async function apiRequest(path, options = {}) {
     }
 
     if (!response.ok) {
-        const message = (body && body.detail) || `Erro ${response.status}`;
+        let message = (body && body.detail) || `Erro ${response.status}`;
+        // Erros de validação do FastAPI (422) vêm como lista de objetos.
+        if (Array.isArray(message)) {
+            message = message.map((e) => e.msg).join("; ");
+        }
         throw new Error(message);
     }
 

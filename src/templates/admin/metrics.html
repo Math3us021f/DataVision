@@ -1,48 +1,51 @@
 {% extends "admin/base_admin.html" %}
+{% from "_icons.html" import icon %}
 {% set active = "metrics" %}
 
-{% block title %}Métricas — DataVision Admin{% endblock %}
+{% block title %}Métricas — DataVision{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Métricas do sistema</h1>
-    <span id="metrics-updated" class="muted"></span>
+    <div>
+        <h1>Métricas do sistema</h1>
+        <p class="page-header__subtitle">Atualização automática a cada 5 segundos.</p>
+    </div>
+    <span id="metrics-updated" class="live-dot">Carregando...</span>
 </div>
 
-<p id="metrics-scope" class="notice"></p>
-<p id="metrics-error" class="error" hidden></p>
+<div class="alert alert--info">{{ icon("info") }}<span id="metrics-scope"></span></div>
+<div id="metrics-error" class="alert alert--danger" hidden></div>
 
 <div class="metrics-grid">
     <section class="card metric">
-        <h2>CPU</h2>
+        <div class="metric__head"><span class="metric__icon">{{ icon("cpu") }}</span> CPU</div>
         <p class="metric__value" id="cpu-value">—</p>
         <div class="bar"><div class="bar__fill" id="cpu-bar"></div></div>
     </section>
 
     <section class="card metric">
-        <h2>Memória</h2>
+        <div class="metric__head"><span class="metric__icon">{{ icon("memory") }}</span> Memória</div>
         <p class="metric__value" id="memory-value">—</p>
         <div class="bar"><div class="bar__fill" id="memory-bar"></div></div>
         <p class="metric__detail" id="memory-detail"></p>
     </section>
 
     <section class="card metric">
-        <h2>Disco</h2>
+        <div class="metric__head"><span class="metric__icon">{{ icon("disk") }}</span> Disco</div>
         <p class="metric__value" id="disk-value">—</p>
         <div class="bar"><div class="bar__fill" id="disk-bar"></div></div>
         <p class="metric__detail" id="disk-detail"></p>
     </section>
 
     <section class="card metric">
-        <h2>Rede</h2>
-        <p class="metric__detail">Enviado: <span id="net-sent">—</span></p>
-        <p class="metric__detail">Recebido: <span id="net-recv">—</span></p>
-        <p class="metric__detail muted">Total acumulado desde que o ambiente subiu.</p>
+        <div class="metric__head"><span class="metric__icon">{{ icon("network") }}</span> Rede</div>
+        <p class="metric__detail">Enviado: <strong id="net-sent">—</strong></p>
+        <p class="metric__detail">Recebido: <strong id="net-recv">—</strong></p>
+        <p class="metric__detail">Total acumulado desde que o ambiente subiu.</p>
     </section>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/api.js"></script>
 <script src="/static/js/admin_metrics.js"></script>
 {% endblock %}

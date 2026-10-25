@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% set active = "account" %}
+
+{% block title %}Minha conta — DataVision{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Minha conta</h1>
+        <p class="page-header__subtitle">{{ user.username }} · {{ "Administrador" if user.is_admin else "Usuário" }}</p>
+    </div>
+</div>
+
+<section class="card card--wide account-card">
+    <div class="card__header">
+        <div>
+            <h2>Trocar senha</h2>
+            <div class="card__subtitle">Ao trocar, suas outras sessões abertas (outros navegadores ou computadores) são encerradas.</div>
+        </div>
+    </div>
+    <form id="password-form" class="form">
+        <div class="field">
+            <label for="current-password">Senha atual</label>
+            <input type="password" id="current-password" autocomplete="current-password" required>
+        </div>
+        <div class="field">
+            <label for="new-password">Nova senha (mínimo 8 caracteres)</label>
+            <input type="password" id="new-password" autocomplete="new-password" required minlength="8">
+        </div>
+        <div class="field">
+            <label for="confirm-password">Confirmar nova senha</label>
+            <input type="password" id="confirm-password" autocomplete="new-password" required minlength="8">
+        </div>
+        <div id="password-error" class="alert alert--danger" hidden></div>
+        <div>
+            <button type="submit" id="password-submit">Salvar nova senha</button>
+        </div>
+    </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/account.js"></script>
+{% endblock %}

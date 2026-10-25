@@ -67,9 +67,9 @@ def test_static_css_e_servido(client):
     assert "text/css" in response.headers["content-type"]
 
 
-def test_home_mostra_link_admin_so_para_admin(admin_client, non_admin_client):
-    assert "Módulo administrador" in admin_client.get("/").text
-    assert "Módulo administrador" not in non_admin_client.get("/").text
+def test_home_mostra_links_admin_so_para_admin(admin_client, non_admin_client):
+    assert 'href="/admin/users"' in admin_client.get("/").text
+    assert 'href="/admin/users"' not in non_admin_client.get("/").text
 
 
 def test_admin_users_sem_sessao_redireciona_para_login(client):

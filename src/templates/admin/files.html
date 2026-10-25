@@ -1,16 +1,21 @@
 {% extends "admin/base_admin.html" %}
+{% from "_icons.html" import icon %}
 {% set active = "files" %}
 
-{% block title %}Arquivos — DataVision Admin{% endblock %}
+{% block title %}Arquivos — DataVision{% endblock %}
 
 {% block content %}
-<h1>Explorador de arquivos</h1>
-<p class="notice">Somente leitura, restrito à pasta <code>data/</code>. Só arquivos <code>.csv</code>, <code>.txt</code> e <code>.json</code> de até 1 MB podem ser abertos.</p>
+<div class="page-header">
+    <div>
+        <h1>Explorador de arquivos</h1>
+        <p class="page-header__subtitle">Somente leitura, restrito à pasta <code>data/</code>. Abre <code>.csv</code>, <code>.txt</code> e <code>.json</code> de até 1 MB.</p>
+    </div>
+</div>
 
-<div class="files-layout">
-    <section class="card card--wide">
-        <nav id="breadcrumb" class="breadcrumb"></nav>
-        <p id="files-error" class="error" hidden></p>
+<section class="card card--wide">
+    <nav id="breadcrumb" class="breadcrumb" aria-label="Caminho"></nav>
+    <div id="files-error" class="alert alert--danger" hidden></div>
+    <div class="table-wrapper">
         <table class="table">
             <thead>
                 <tr>
@@ -20,21 +25,23 @@
             </thead>
             <tbody id="files-table-body"></tbody>
         </table>
-        <p id="files-empty" class="muted" hidden>Pasta vazia.</p>
-    </section>
+    </div>
+    <p id="files-empty" class="empty-state" hidden>Esta pasta está vazia.</p>
+</section>
 
-    <section class="card card--wide" id="viewer" hidden>
-        <div class="page-header">
-            <h2 id="viewer-title"></h2>
-            <button type="button" id="viewer-close" class="button--small">Fechar</button>
-        </div>
-        <p id="viewer-error" class="error" hidden></p>
-        <pre id="viewer-content" class="file-content"></pre>
-    </section>
-</div>
+<section class="card card--wide" id="viewer" hidden>
+    <div class="card__header">
+        <h2 id="viewer-title"></h2>
+        <button type="button" id="viewer-close" class="button--secondary button--small">{{ icon("close") }} Fechar</button>
+    </div>
+    <div id="viewer-error" class="alert alert--danger" hidden></div>
+    <pre id="viewer-content" class="file-content"></pre>
+</section>
+
+<template id="icon-folder">{{ icon("folder") }}</template>
+<template id="icon-file">{{ icon("file") }}</template>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/api.js"></script>
 <script src="/static/js/admin_files.js"></script>
 {% endblock %}

@@ -16,6 +16,7 @@ from src.auth import (
 from src.db import get_connection
 from src.logging_config import logger, setup_logging
 from src.rate_limit import is_locked_out, register_failed_attempt, reset_attempts
+from src.routers.account import router as account_router
 from src.routers.datasets import router as datasets_router
 from src.routers.files import router as files_router
 from src.routers.logs import router as logs_router
@@ -44,6 +45,9 @@ def init_db() -> None:
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"
         )
         conn.execute(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 0"
+        )
+        conn.execute(
             """
             CREATE TABLE IF NOT EXISTS audit_logs (
                 id SERIAL PRIMARY KEY,
@@ -55,6 +59,16 @@ def init_db() -> None:
             )
             """
         )
+        # Excluir um usuário não pode apagar nem travar o histórico de auditoria:
+        # as referências passam a ficar vazias (NULL) e o registro permanece.
+        conn.execute("ALTER TABLE audit_logs ALTER COLUMN actor_user_id DROP NOT NULL")
+        for column in ("actor_user_id", "target_user_id"):
+            constraint = f"audit_logs_{column}_fkey"
+            conn.execute(f"ALTER TABLE audit_logs DROP CONSTRAINT IF EXISTS {constraint}")
+            conn.execute(
+                f"ALTER TABLE audit_logs ADD CONSTRAINT {constraint} "
+                f"FOREIGN KEY ({column}) REFERENCES users (id) ON DELETE SET NULL"
+            )
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS datasets (
@@ -122,6 +136,7 @@ app.include_router(metrics_router)
 app.include_router(logs_router)
 app.include_router(files_router)
 app.include_router(datasets_router)
+app.include_router(account_router)
 app.include_router(web_router)
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
@@ -152,7 +167,7 @@ def login(credentials: LoginRequest, request: Request, response: Response) -> di
 
     with get_connection() as conn:
         user = conn.execute(
-            "SELECT id, password_hash, is_active FROM users WHERE username = %s",
+            "SELECT id, password_hash, is_active, session_version FROM users WHERE username = %s",
             (credentials.username,),
         ).fetchone()
 
@@ -173,7 +188,7 @@ def login(credentials: LoginRequest, request: Request, response: Response) -> di
 
     reset_attempts(rate_limit_key)
     logger.info("Login bem-sucedido: user_id=%s username=%r", user["id"], credentials.username)
-    token = create_session_token(user["id"])
+    token = create_session_token(user["id"], user["session_version"])
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,

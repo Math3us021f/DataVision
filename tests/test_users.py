@@ -61,9 +61,11 @@ def test_anonimo_nao_pode_criar_usuario(client):
 
 
 def test_admin_lista_usuarios(admin_client):
-    response = admin_client.get("/users")
+    response = admin_client.get("/users", params={"search": ADMIN_USERNAME})
     assert response.status_code == 200
-    assert any(u["username"] == ADMIN_USERNAME for u in response.json())
+    body = response.json()
+    assert body["total"] >= 1
+    assert any(u["username"] == ADMIN_USERNAME for u in body["items"])
 
 
 def test_desativar_usuario_impede_login(admin_client):
@@ -80,8 +82,8 @@ def test_desativar_usuario_impede_login(admin_client):
 
 def test_admin_nao_pode_desativar_a_propria_conta(admin_client):
     me = admin_client.get("/me").json()
-    admin_user = admin_client.get("/users").json()
-    admin_id = next(u["id"] for u in admin_user if u["username"] == me["username"])
+    page = admin_client.get("/users", params={"search": me["username"]}).json()
+    admin_id = next(u["id"] for u in page["items"] if u["username"] == me["username"])
 
     response = admin_client.patch(f"/users/{admin_id}", json={"is_active": False})
     assert response.status_code == 400

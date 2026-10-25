@@ -1,19 +1,43 @@
-{% extends "base.html" %}
+{% extends "layout.html" %}
+{% from "_icons.html" import icon %}
+{% set active = "home" %}
 
-{% block title %}DataVision{% endblock %}
+{% block title %}Início — DataVision{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h1>Bem-vindo, {{ user.username }}</h1>
-    <p>{% if user.is_admin %}Você é administrador.{% else %}Usuário comum.{% endif %}</p>
-    {% if user.is_admin %}
-    <a href="/admin" class="link-button">Módulo administrador</a>
-    {% endif %}
-    <button id="logout-button">Sair</button>
+<div class="page-header">
+    <div>
+        <h1>Olá, {{ user.username }}</h1>
+        <p class="page-header__subtitle">Bem-vindo ao DataVision.</p>
+    </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script src="/static/js/api.js"></script>
-<script src="/static/js/home.js"></script>
+{% if user.is_admin %}
+<div class="shortcut-grid">
+    <a class="card shortcut" href="/admin/users">
+        <span class="metric__icon">{{ icon("users") }}</span>
+        <h2>Usuários</h2>
+        <p class="muted">Criar contas e ativar ou desativar acessos.</p>
+    </a>
+    <a class="card shortcut" href="/admin/metrics">
+        <span class="metric__icon">{{ icon("chart") }}</span>
+        <h2>Métricas</h2>
+        <p class="muted">CPU, memória, disco e rede em tempo real.</p>
+    </a>
+    <a class="card shortcut" href="/admin/logs">
+        <span class="metric__icon">{{ icon("logs") }}</span>
+        <h2>Logs</h2>
+        <p class="muted">Eventos de login e ações administrativas.</p>
+    </a>
+    <a class="card shortcut" href="/admin/files">
+        <span class="metric__icon">{{ icon("folder") }}</span>
+        <h2>Arquivos</h2>
+        <p class="muted">Navegar pela pasta de dados, somente leitura.</p>
+    </a>
+</div>
+{% else %}
+<div class="card empty-state">
+    <p>As telas de envio e análise de dados ainda estão em construção.</p>
+</div>
+{% endif %}
 {% endblock %}

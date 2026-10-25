@@ -1,11 +1,15 @@
 {% extends "admin/base_admin.html" %}
+{% from "_icons.html" import icon %}
 {% set active = "logs" %}
 
-{% block title %}Logs — DataVision Admin{% endblock %}
+{% block title %}Logs — DataVision{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Logs da aplicação</h1>
+    <div>
+        <h1>Logs da aplicação</h1>
+        <p class="page-header__subtitle">Logins, falhas de acesso e ações administrativas. Mais recentes primeiro.</p>
+    </div>
     <span id="logs-updated" class="muted"></span>
 </div>
 
@@ -34,16 +38,15 @@
             <label for="logs-search">Buscar</label>
             <input type="search" id="logs-search" placeholder="ex: Login falhou, username=...">
         </div>
-        <button id="logs-refresh" type="button">Atualizar</button>
+        <button id="logs-refresh" type="button" class="button--secondary">{{ icon("refresh") }} Atualizar</button>
     </div>
 
     <p id="logs-summary" class="muted"></p>
-    <p id="logs-error" class="error" hidden></p>
+    <div id="logs-error" class="alert alert--danger" hidden></div>
     <ol id="logs-list" class="log-list"></ol>
 </section>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/api.js"></script>
 <script src="/static/js/admin_logs.js"></script>
 {% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block body %}
+<div class="app">
+    <aside class="sidebar">
+        <div class="sidebar__brand">
+            <span class="logo logo--small">{{ icon("logo") }}</span>
+            DataVision
+        </div>
+
+        <nav class="sidebar__nav">
+            <a href="/" class="sidebar__link {% if active == 'home' %}is-active{% endif %}">{{ icon("home") }} Início</a>
+            <a href="/account" class="sidebar__link {% if active == 'account' %}is-active{% endif %}">{{ icon("key") }} Minha conta</a>
+        </nav>
+
+        {% if user.is_admin %}
+        <div class="sidebar__section">Administração</div>
+        <nav class="sidebar__nav">
+            <a href="/admin/users" class="sidebar__link {% if active == 'users' %}is-active{% endif %}">{{ icon("users") }} Usuários</a>
+            <a href="/admin/metrics" class="sidebar__link {% if active == 'metrics' %}is-active{% endif %}">{{ icon("chart") }} Métricas</a>
+            <a href="/admin/logs" class="sidebar__link {% if active == 'logs' %}is-active{% endif %}">{{ icon("logs") }} Logs</a>
+            <a href="/admin/files" class="sidebar__link {% if active == 'files' %}is-active{% endif %}">{{ icon("folder") }} Arquivos</a>
+        </nav>
+        {% endif %}
+
+        <div class="sidebar__footer">
+            <span class="avatar">{{ user.username[:1] }}</span>
+            <div class="sidebar__user">
+                <div class="sidebar__username">{{ user.username }}</div>
+                <div class="sidebar__role">{{ "Administrador" if user.is_admin else "Usuário" }}</div>
+            </div>
+            <button type="button" class="icon-button" id="logout-button" title="Sair" aria-label="Sair">{{ icon("logout") }}</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+<div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+<dialog class="dialog" id="confirm-dialog">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-message"></p>
+    <div class="dialog__actions">
+        <button type="button" class="button--secondary" id="confirm-cancel">Cancelar</button>
+        <button type="button" class="button--danger" id="confirm-ok">Confirmar</button>
+    </div>
+</dialog>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/ui.js"></script>
+{% endblock %}

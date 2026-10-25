@@ -76,7 +76,8 @@ function renderEntries(entries) {
         const link = document.createElement("a");
         link.href = "#";
         link.className = entry.is_dir ? "entry entry--dir" : "entry entry--file";
-        link.textContent = entry.is_dir ? `${entry.name}/` : entry.name;
+        const iconTemplate = document.getElementById(entry.is_dir ? "icon-folder" : "icon-file");
+        link.append(iconTemplate.content.cloneNode(true), document.createTextNode(entry.name));
         link.addEventListener("click", (e) => {
             e.preventDefault();
             const path = joinPath(currentPath, entry.name);

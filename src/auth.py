@@ -6,6 +6,8 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from src.db import get_connection
 
+MIN_PASSWORD_LENGTH = 8
+
 SESSION_COOKIE_NAME = "session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 8  # 8 horas
 
@@ -18,15 +20,30 @@ def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
+def validate_new_password(password: str) -> None:
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A senha precisa ter pelo menos {MIN_PASSWORD_LENGTH} caracteres.",
+        )
+    # bcrypt só considera os primeiros 72 bytes; acima disso o resto seria ignorado em silêncio.
+    if len(password.encode("utf-8")) > 72:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A senha pode ter no máximo 72 bytes.",
+        )
+
+
 def _get_serializer() -> URLSafeTimedSerializer:
     secret_key = os.environ["SECRET_KEY"]
     return URLSafeTimedSerializer(secret_key, salt="datavision-session")
 
 
-def create_session_token(user_id: int) -> str:
-    """O cookie guarda só o id do usuário; permissões são sempre lidas do banco, nunca do cookie."""
+def create_session_token(user_id: int, session_version: int) -> str:
+    """O cookie guarda só o id e a versão de sessão; permissões são sempre lidas do banco.
+    Trocar a senha incrementa session_version no banco, invalidando cookies emitidos antes."""
     serializer = _get_serializer()
-    return serializer.dumps({"user_id": user_id})
+    return serializer.dumps({"user_id": user_id, "v": session_version})
 
 
 def _read_session_token(token: str) -> dict:
@@ -48,12 +65,16 @@ def get_current_user(session: str | None = Cookie(default=None)) -> dict:
 
     with get_connection() as conn:
         user = conn.execute(
-            "SELECT id, username, is_admin, is_active FROM users WHERE id = %s",
+            "SELECT id, username, is_admin, is_active, session_version FROM users WHERE id = %s",
             (payload["user_id"],),
         ).fetchone()
 
     if user is None or not user["is_active"]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Não autenticado")
+
+    # Cookies emitidos antes da última troca de senha deixam de valer.
+    if payload.get("v") != user["session_version"]:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão encerrada")
 
     return user
 

@@ -1,21 +1,36 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Entrar — DataVision{% endblock %}
 
 {% block content %}
 <div class="card card--narrow">
-    <h1>DataVision</h1>
-    <form id="login-form" class="form">
-        <label for="username">Usuário</label>
-        <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+    <div class="login-brand">
+        <span class="logo">{{ icon("logo") }}</span>
+        <h1>DataVision</h1>
+    </div>
+    <p class="login-subtitle">Entre com sua conta para continuar.</p>
 
-        <label for="password">Senha</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required>
+    <form id="login-form" class="form" novalidate>
+        <div class="field">
+            <label for="username">Usuário</label>
+            <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+        </div>
 
-        <p id="login-error" class="error" hidden></p>
+        <div class="field">
+            <label for="password">Senha</label>
+            <div class="password-field">
+                <input type="password" id="password" name="password" autocomplete="current-password" required>
+                <button type="button" class="password-toggle" id="password-toggle" aria-label="Mostrar senha" title="Mostrar senha">{{ icon("eye") }}</button>
+            </div>
+        </div>
 
-        <button type="submit">Entrar</button>
+        <div id="login-error" class="alert alert--danger" role="alert" hidden></div>
+
+        <button type="submit" class="button--block" id="login-submit">Entrar</button>
     </form>
+
+    <p class="login-footer">Acesso restrito. Contas são criadas por um administrador.</p>
 </div>
 {% endblock %}
 

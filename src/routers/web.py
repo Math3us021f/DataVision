@@ -22,6 +22,13 @@ def home_page(request: Request, user: dict | None = Depends(get_current_user_opt
     return templates.TemplateResponse(request, "home.html", {"user": user})
 
 
+@router.get("/account")
+def account_page(request: Request, user: dict | None = Depends(get_current_user_optional)):
+    if user is None:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(request, "account.html", {"user": user})
+
+
 def _admin_page(request: Request, user: dict | None, template: str):
     # A página só controla a navegação; a proteção real continua nas rotas da API
     # (require_admin), que barram qualquer chamada de quem não é admin.

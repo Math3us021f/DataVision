@@ -1,13 +1,24 @@
 {% extends "admin/base_admin.html" %}
+{% from "_icons.html" import icon %}
 {% set active = "users" %}
 
-{% block title %}Usuários — DataVision Admin{% endblock %}
+{% block title %}Usuários — DataVision{% endblock %}
 
 {% block content %}
-<h1>Usuários</h1>
+<div class="page-header">
+    <div>
+        <h1>Usuários</h1>
+        <p class="page-header__subtitle">Contas com acesso ao DataVision. Não existe cadastro público.</p>
+    </div>
+</div>
 
 <section class="card card--wide">
-    <h2>Novo usuário</h2>
+    <div class="card__header">
+        <div>
+            <h2>Novo usuário</h2>
+            <div class="card__subtitle">A conta fica ativa assim que é criada.</div>
+        </div>
+    </div>
     <form id="create-user-form" class="form form--inline">
         <div class="field">
             <label for="new-username">Usuário</label>
@@ -15,36 +26,88 @@
         </div>
         <div class="field">
             <label for="new-password">Senha</label>
-            <input type="password" id="new-password" autocomplete="new-password" required>
+            <input type="password" id="new-password" autocomplete="new-password" required minlength="8" placeholder="mínimo 8 caracteres">
         </div>
         <label class="checkbox">
             <input type="checkbox" id="new-is-admin"> Administrador
         </label>
-        <button type="submit">Criar</button>
+        <button type="submit" id="create-user-submit">{{ icon("plus") }} Criar usuário</button>
     </form>
-    <p id="create-user-message" class="message" hidden></p>
 </section>
 
 <section class="card card--wide">
-    <h2>Usuários cadastrados</h2>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Usuário</th>
-                <th>Perfil</th>
-                <th>Status</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody id="users-table-body"></tbody>
-    </table>
-    <p id="users-error" class="error" hidden></p>
+    <div class="card__header">
+        <div>
+            <h2>Usuários cadastrados</h2>
+            <div class="card__subtitle" id="users-count"></div>
+        </div>
+    </div>
+    <div class="toolbar">
+        <div class="field field--grow">
+            <label for="users-search">Buscar</label>
+            <input type="search" id="users-search" placeholder="Nome de usuário" maxlength="100">
+        </div>
+        <div class="field">
+            <label for="users-status">Status</label>
+            <select id="users-status">
+                <option value="all">Todos</option>
+                <option value="active">Ativos</option>
+                <option value="inactive">Inativos</option>
+            </select>
+        </div>
+    </div>
+    <div class="bulk-bar" id="bulk-bar" hidden>
+        <span id="bulk-count"></span>
+        <div class="actions-group">
+            <button type="button" class="button--small button--ghost-success" id="bulk-activate">Ativar</button>
+            <button type="button" class="button--small button--ghost-danger" id="bulk-deactivate">Desativar</button>
+            <button type="button" class="button--small button--danger" id="bulk-delete">Excluir</button>
+            <button type="button" class="button--small button--secondary" id="bulk-clear">Limpar seleção</button>
+        </div>
+    </div>
+    <div class="table-wrapper">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="col-check"><input type="checkbox" id="select-all" aria-label="Selecionar todos desta página"></th>
+                    <th>Usuário</th>
+                    <th>Perfil</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="users-table-body"></tbody>
+        </table>
+    </div>
+    <p id="users-empty" class="empty-state" hidden>Nenhum usuário encontrado.</p>
+    <div class="pagination">
+        <span class="muted" id="users-range"></span>
+        <div class="pagination__controls">
+            <button type="button" class="button--secondary button--small" id="users-prev">Anterior</button>
+            <span class="muted" id="users-page"></span>
+            <button type="button" class="button--secondary button--small" id="users-next">Próxima</button>
+        </div>
+    </div>
 </section>
+
+<dialog class="dialog" id="reset-dialog">
+    <form id="reset-form" class="form">
+        <h2>Redefinir senha</h2>
+        <p class="dialog__text">Nova senha para <strong id="reset-username"></strong>. Sessões abertas desse usuário serão encerradas.</p>
+        <div class="field">
+            <label for="reset-password">Nova senha (mínimo 8 caracteres)</label>
+            <input type="password" id="reset-password" autocomplete="new-password" required minlength="8">
+        </div>
+        <div id="reset-error" class="alert alert--danger" hidden></div>
+        <div class="dialog__actions">
+            <button type="button" class="button--secondary" id="reset-cancel">Cancelar</button>
+            <button type="submit">Redefinir</button>
+        </div>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
 <script>window.CURRENT_USERNAME = {{ user.username | tojson }};</script>
-<script src="/static/js/api.js"></script>
 <script src="/static/js/admin_users.js"></script>
 {% endblock %}
