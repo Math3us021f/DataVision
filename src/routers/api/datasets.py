@@ -5,6 +5,7 @@ from src.core.auth import get_current_user
 from src.core.db import get_connection
 from src.core.logging_config import logger
 from src.services.datasets import (
+    MAX_UPLOAD_BYTES,
     create_profile_for_dataset,
     delete_dataset_core,
     get_dataset_sample,
@@ -26,7 +27,8 @@ class DatasetOut(BaseModel):
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=DatasetOut)
 async def upload_dataset(file: UploadFile, user: dict = Depends(get_current_user)) -> dict:
-    content = await file.read()
+    # Lê no máximo 1 byte além do limite: um arquivo gigante é recusado (413) sem ser carregado inteiro na memória.
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
     with get_connection() as conn:
         dataset = save_uploaded_dataset(conn, user["id"], file.filename, content)
         conn.commit()

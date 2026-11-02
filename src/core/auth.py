@@ -1,7 +1,7 @@
 import os
 
 import bcrypt
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, Response, status
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from src.core.db import get_connection
@@ -16,8 +16,37 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+MAX_PASSWORD_BYTES = 72  # limite do bcrypt
+
+
 def verify_password(password: str, password_hash: str) -> bool:
-    return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    encoded = password.encode("utf-8")
+    if len(encoded) > MAX_PASSWORD_BYTES:
+        # Nenhuma senha cadastrada passa de 72 bytes (validate_new_password); e versões novas do
+        # bcrypt levantam ValueError nesse caso, o que viraria um erro 500 no login.
+        return False
+    return bcrypt.checkpw(encoded, password_hash.encode("utf-8"))
+
+
+_DUMMY_PASSWORD_HASH = hash_password("senha-descartavel-so-para-gastar-tempo")
+
+
+def burn_password_check(password: str) -> None:
+    """Gasta o mesmo tempo de uma verificação real. Sem isso, login de usuário inexistente responde
+    bem mais rápido que senha errada de usuário existente, e a diferença de tempo revela quais contas existem."""
+    verify_password(password, _DUMMY_PASSWORD_HASH)
+
+
+def set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        max_age=SESSION_MAX_AGE_SECONDS,
+        httponly=True,
+        samesite="lax",
+        # Em produção com HTTPS, ligar SESSION_COOKIE_SECURE=true. Lido a cada chamada, não no import.
+        secure=os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true",
+    )
 
 
 def validate_new_password(password: str) -> None:

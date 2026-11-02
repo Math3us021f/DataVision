@@ -5,7 +5,7 @@ Regras de desenvolvimento completas em [CLAUDE.md](CLAUDE.md). Roteiro de etapas
 
 ## Status atual
 
-Etapas 0 a 10 concluídas: DataVision Admin estabilizado + recepção/armazenamento de datasets (MinIO) + perfilamento de dados (detecção de tipo de coluna, valores ausentes, duplicidades via `pandas`) — tudo testado (`pytest`, 54 testes) e documentado. Próximo passo: dashboards automáticos (Etapa 11).
+Etapas 0 a 11 concluídas: DataVision Admin + datasets (MinIO) + perfilamento + dashboards automáticos e personalizáveis (regras determinísticas em Python, gráficos com Apache ECharts). Testado: 202 testes de integração (`pytest`) e 13 de interface (Playwright). Etapa 12 (validação do MVP e planejamento de deploy) em andamento: ver [docs/etapa12_validacao_mvp.md](docs/etapa12_validacao_mvp.md).
 
 ## Ambiente
 

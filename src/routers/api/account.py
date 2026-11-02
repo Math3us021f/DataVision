@@ -2,11 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 
 from src.core.auth import (
-    SESSION_COOKIE_NAME,
-    SESSION_MAX_AGE_SECONDS,
     create_session_token,
     get_current_user,
     hash_password,
+    set_session_cookie,
     validate_new_password,
     verify_password,
 )
@@ -53,11 +52,5 @@ def change_own_password(data: ChangePasswordRequest, response: Response, user: d
         conn.commit()
 
     # Outras sessões ficam inválidas; esta recebe um cookie novo com a versão atual.
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=create_session_token(user["id"], updated["session_version"]),
-        max_age=SESSION_MAX_AGE_SECONDS,
-        httponly=True,
-        samesite="lax",
-    )
+    set_session_cookie(response, create_session_token(user["id"], updated["session_version"]))
     logger.info("Senha trocada pelo próprio usuário: user_id=%s", user["id"])

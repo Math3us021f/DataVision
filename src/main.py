@@ -7,10 +7,11 @@ from pydantic import BaseModel
 
 from src.core.auth import (
     SESSION_COOKIE_NAME,
-    SESSION_MAX_AGE_SECONDS,
+    burn_password_check,
     create_session_token,
     get_current_user,
     hash_password,
+    set_session_cookie,
     verify_password,
 )
 from src.core.db import get_connection
@@ -160,12 +161,29 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# Em produção (APP_ENV=production) a documentação interativa some: /docs e /openapi.json são
+# públicos (sem login) e listariam todas as rotas, inclusive as administrativas.
+_docs_enabled = os.environ.get("APP_ENV", "development") != "production"
+
 app = FastAPI(
     title="DataVision",
     description="API para análise automática de arquivos de dados.",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")  # impede a aplicação de ser embutida em outro site (clickjacking)
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    return response
+
 app.include_router(users_router)
 app.include_router(metrics_router)
 app.include_router(logs_router)
@@ -213,7 +231,13 @@ def login(credentials: LoginRequest, request: Request, response: Response) -> di
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário ou senha inválidos"
     )
 
-    if user is None or not verify_password(credentials.password, user["password_hash"]):
+    if user is None:
+        burn_password_check(credentials.password)
+        password_ok = False
+    else:
+        password_ok = verify_password(credentials.password, user["password_hash"])
+
+    if not password_ok:
         register_failed_attempt(rate_limit_key)
         logger.warning("Login falhou para username=%r", credentials.username)
         raise credenciais_invalidas
@@ -227,13 +251,7 @@ def login(credentials: LoginRequest, request: Request, response: Response) -> di
     reset_attempts(rate_limit_key)
     logger.info("Login bem-sucedido: user_id=%s username=%r", user["id"], credentials.username)
     token = create_session_token(user["id"], user["session_version"])
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        max_age=SESSION_MAX_AGE_SECONDS,
-        httponly=True,
-        samesite="lax",
-    )
+    set_session_cookie(response, token)
     return {"status": "ok"}
 
 
