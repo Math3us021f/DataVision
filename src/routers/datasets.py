@@ -2,7 +2,9 @@ import io
 import os
 import uuid
 
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from psycopg.types.json import Jsonb
 from pydantic import BaseModel
 
 from src.auth import get_current_user
@@ -91,6 +93,35 @@ async def upload_dataset(file: UploadFile, user: dict = Depends(get_current_user
     return dataset
 
 
+def delete_dataset_core(conn, dataset_id: int, object_key: str) -> None:
+    """Apaga o dataset por completo: arquivo no MinIO + linhas no Postgres. Não comita (quem chama decide quando).
+
+    Usada tanto pelo próprio dono (DELETE /datasets/{id}) quanto pela exclusão
+    forçada de um usuário (DELETE /users/{id}?force=true), que apaga os
+    datasets de outra pessoa antes de apagar a conta.
+    """
+    try:
+        get_minio_client().remove_object(os.environ["MINIO_BUCKET"], object_key)
+    except Exception as exc:
+        # Não travamos a exclusão por causa do MinIO: preferimos um objeto órfão
+        # (que pode ser limpo depois) a deixar o usuário preso para sempre.
+        logger.warning("Falha ao remover objeto do MinIO: object_key=%s erro=%s", object_key, exc)
+
+    conn.execute("DELETE FROM dataset_columns WHERE dataset_id = %s", (dataset_id,))
+    conn.execute("DELETE FROM dataset_profiles WHERE dataset_id = %s", (dataset_id,))
+    conn.execute("DELETE FROM datasets WHERE id = %s", (dataset_id,))
+
+
+@router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dataset(dataset_id: int, user: dict = Depends(get_current_user)) -> None:
+    with get_connection() as conn:
+        dataset = _get_owned_dataset(conn, dataset_id, user["id"])
+        delete_dataset_core(conn, dataset_id, dataset["object_key"])
+        conn.commit()
+
+    logger.info("Dataset excluído: id=%s owner_id=%s", dataset_id, user["id"])
+
+
 @router.get("", response_model=list[DatasetOut])
 def list_my_datasets(user: dict = Depends(get_current_user)) -> list[dict]:
     with get_connection() as conn:
@@ -116,11 +147,27 @@ def _get_owned_dataset(conn, dataset_id: int, user_id: int) -> dict:
     return dataset
 
 
+class TopValueOut(BaseModel):
+    value: str
+    count: int
+
+
+class HistogramOut(BaseModel):
+    bin_edges: list[float]
+    counts: list[int]
+
+
 class ColumnProfileOut(BaseModel):
     column_name: str
     inferred_type: str
     null_count: int
     distinct_count: int
+    min_value: float | None = None
+    max_value: float | None = None
+    mean_value: float | None = None
+    median_value: float | None = None
+    top_values: list[TopValueOut] | None = None
+    histogram: HistogramOut | None = None
 
 
 class DatasetProfileOut(BaseModel):
@@ -148,13 +195,26 @@ def create_profile(dataset_id: int, user: dict = Depends(get_current_user)) -> d
             (dataset_id, result["row_count"], result["duplicate_row_count"]),
         )
         for col in result["columns"]:
-            conn.execute(
+            column_row = conn.execute(
                 """
-                INSERT INTO dataset_columns (dataset_id, column_name, inferred_type, null_count, distinct_count)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO dataset_columns
+                    (dataset_id, column_name, inferred_type, null_count, distinct_count,
+                     min_value, max_value, mean_value, median_value, histogram)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
                 """,
-                (dataset_id, col["column_name"], col["inferred_type"], col["null_count"], col["distinct_count"]),
-            )
+                (
+                    dataset_id, col["column_name"], col["inferred_type"], col["null_count"], col["distinct_count"],
+                    col["min_value"], col["max_value"], col["mean_value"], col["median_value"],
+                    Jsonb(col["histogram"]) if col["histogram"] else None,
+                ),
+            ).fetchone()
+
+            for top in col["top_values"] or []:
+                conn.execute(
+                    "INSERT INTO dataset_column_top_values (dataset_column_id, value, occurrence_count) VALUES (%s, %s, %s)",
+                    (column_row["id"], top["value"], top["count"]),
+                )
         conn.commit()
 
     logger.info(
@@ -180,8 +240,66 @@ def get_profile(dataset_id: int, user: dict = Depends(get_current_user)) -> dict
             )
 
         columns = conn.execute(
-            "SELECT column_name, inferred_type, null_count, distinct_count FROM dataset_columns WHERE dataset_id = %s",
+            """
+            SELECT id, column_name, inferred_type, null_count, distinct_count,
+                   min_value, max_value, mean_value, median_value, histogram
+            FROM dataset_columns WHERE dataset_id = %s
+            ORDER BY id
+            """,
             (dataset_id,),
         ).fetchall()
 
+        top_values_by_column: dict[int, list[dict]] = {}
+        if columns:
+            rows = conn.execute(
+                """
+                SELECT dataset_column_id, value, occurrence_count
+                FROM dataset_column_top_values
+                WHERE dataset_column_id = ANY(%s)
+                ORDER BY occurrence_count DESC
+                """,
+                ([c["id"] for c in columns],),
+            ).fetchall()
+            for row in rows:
+                top_values_by_column.setdefault(row["dataset_column_id"], []).append(
+                    {"value": row["value"], "count": row["occurrence_count"]}
+                )
+
+        for column in columns:
+            column["top_values"] = top_values_by_column.get(column.pop("id")) or None
+
     return {**profile, "columns": columns}
+
+
+SAMPLE_ROWS = 20
+
+
+class DatasetSampleOut(BaseModel):
+    columns: list[str]
+    rows: list[list[str | None]]
+    total_rows: int
+    sample_size: int
+
+
+def _cell_to_str(value) -> str | None:
+    """None para ausente (NaN/NaT); todo o resto vira texto — é uma amostra visual,
+    não um valor que algum código vá reprocessar."""
+    if pd.isna(value):
+        return None
+    return str(value)
+
+
+@router.get("/{dataset_id}/sample", response_model=DatasetSampleOut)
+def get_sample(dataset_id: int, user: dict = Depends(get_current_user)) -> dict:
+    with get_connection() as conn:
+        dataset = _get_owned_dataset(conn, dataset_id, user["id"])
+
+    df = load_dataframe(dataset["object_key"], dataset["format"])
+    sample = df.head(SAMPLE_ROWS)
+
+    return {
+        "columns": [str(c) for c in sample.columns],
+        "rows": [[_cell_to_str(v) for v in row] for row in sample.itertuples(index=False, name=None)],
+        "total_rows": len(df),
+        "sample_size": len(sample),
+    }

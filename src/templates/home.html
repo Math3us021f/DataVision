@@ -1,43 +1,65 @@
 {% extends "layout.html" %}
 {% from "_icons.html" import icon %}
 {% set active = "home" %}
+{% set page_title = "Olá, " ~ user.username %}
+
+{% macro stat(id, label, ic, href=None) %}
+<{{ "a href=" ~ href if href else "div" }} class="card stat{{ ' stat--link' if href }}">
+    <span class="metric__icon">{{ icon(ic) }}</span>
+    <div>
+        <div class="stat__label">{{ label }}</div>
+        <div class="stat__value" id="{{ id }}">—</div>
+        <div class="stat__detail" id="{{ id }}-detail"></div>
+    </div>
+</{{ "a" if href else "div" }}>
+{% endmacro %}
 
 {% block title %}Início — DataVision{% endblock %}
 
+{% block page_subtitle %}Resumo do que está acontecendo no DataVision.{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1>Olá, {{ user.username }}</h1>
-        <p class="page-header__subtitle">Bem-vindo ao DataVision.</p>
+<div id="home-error" hidden></div>
+
+<div id="home-content">
+    <h2 class="section-title">Meus dados</h2>
+    <div class="stat-grid">
+        {{ stat("stat-datasets", "Datasets enviados", "file", "/meus-datasets") }}
+        {{ stat("stat-storage", "Espaço usado", "disk") }}
+        {{ stat("stat-profiled", "Datasets perfilados", "chart") }}
+    </div>
+
+    {% if user.is_admin %}
+    <h2 class="section-title">Sistema</h2>
+    <div class="stat-grid">
+        {{ stat("stat-users", "Usuários ativos", "users", "/admin/users") }}
+        {{ stat("stat-all-datasets", "Datasets no sistema", "folder") }}
+        {{ stat("stat-cpu", "CPU", "cpu", "/admin/metrics") }}
+        {{ stat("stat-memory", "Memória", "memory", "/admin/metrics") }}
+    </div>
+    {% endif %}
+
+    <div class="panel-grid">
+        <section class="card">
+            <div class="card__header">
+                <h2>Últimos envios</h2>
+                <a href="/meus-datasets" class="muted">Ver todos</a>
+            </div>
+            <ul class="activity" id="recent-datasets"></ul>
+            <div id="recent-datasets-empty" hidden></div>
+        </section>
+
+        {% if user.is_admin %}
+        <section class="card">
+            <div class="card__header"><h2>Atividade administrativa</h2></div>
+            <ul class="activity" id="recent-audit"></ul>
+            <div id="recent-audit-empty" hidden></div>
+        </section>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
 
-{% if user.is_admin %}
-<div class="shortcut-grid">
-    <a class="card shortcut" href="/admin/users">
-        <span class="metric__icon">{{ icon("users") }}</span>
-        <h2>Usuários</h2>
-        <p class="muted">Criar contas e ativar ou desativar acessos.</p>
-    </a>
-    <a class="card shortcut" href="/admin/metrics">
-        <span class="metric__icon">{{ icon("chart") }}</span>
-        <h2>Métricas</h2>
-        <p class="muted">CPU, memória, disco e rede em tempo real.</p>
-    </a>
-    <a class="card shortcut" href="/admin/logs">
-        <span class="metric__icon">{{ icon("logs") }}</span>
-        <h2>Logs</h2>
-        <p class="muted">Eventos de login e ações administrativas.</p>
-    </a>
-    <a class="card shortcut" href="/admin/files">
-        <span class="metric__icon">{{ icon("folder") }}</span>
-        <h2>Arquivos</h2>
-        <p class="muted">Navegar pela pasta de dados, somente leitura.</p>
-    </a>
-</div>
-{% else %}
-<div class="card empty-state">
-    <p>As telas de envio e análise de dados ainda estão em construção.</p>
-</div>
-{% endif %}
+{% block scripts %}
+<script src="/static/js/home.js"></script>
 {% endblock %}

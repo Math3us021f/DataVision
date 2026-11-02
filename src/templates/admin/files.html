@@ -1,16 +1,14 @@
 {% extends "admin/base_admin.html" %}
 {% from "_icons.html" import icon %}
 {% set active = "files" %}
+{% set page_title = "Explorador de arquivos" %}
+{% set breadcrumb = ["Administração", "Arquivos"] %}
 
 {% block title %}Arquivos — DataVision{% endblock %}
 
+{% block page_subtitle %}Somente leitura, restrito à pasta <code>data/</code>. Abre <code>.csv</code>, <code>.txt</code> e <code>.json</code> de até 1 MB.{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1>Explorador de arquivos</h1>
-        <p class="page-header__subtitle">Somente leitura, restrito à pasta <code>data/</code>. Abre <code>.csv</code>, <code>.txt</code> e <code>.json</code> de até 1 MB.</p>
-    </div>
-</div>
 
 <section class="card card--wide">
     <nav id="breadcrumb" class="breadcrumb" aria-label="Caminho"></nav>

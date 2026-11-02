@@ -77,6 +77,24 @@ curl -s -i -b cookies.txt -X DELETE http://localhost:8000/users/ID_DO_USUARIO
 - A exclusão fica registrada em `audit_logs` (`delete_user`, com id e nome em `details`).
 - Na tela: marque usuários pelas caixas de seleção para ativar, desativar ou excluir em lote.
 
+## Excluir usuário com datasets, forçando (só admin)
+
+```bash
+curl -s -i -b cookies.txt -X DELETE "http://localhost:8000/users/ID_DO_USUARIO?force=true"
+```
+
+- Apaga os datasets do usuário (arquivo no MinIO incluído) e depois a conta. **Irreversível.**
+- Na tela: o botão "Excluir" do menu "⋯" pede duas confirmações quando o usuário tem datasets — a segunda é explícita sobre apagar tudo.
+- **Em lote:** selecione vários usuários (alguns com dataset, outros não) e clique em "Excluir" na barra de ações. Quem não tem dataset é excluído na hora; para quem tem, aparece uma segunda confirmação oferecendo forçar só esses.
+
+## Excluir um dataset
+
+```bash
+curl -s -i -b cookies.txt -X DELETE http://localhost:8000/datasets/ID_DO_DATASET
+```
+
+- Esperado: `204`. Apaga o arquivo no MinIO, o perfilamento e o registro. Dataset de outro usuário ou inexistente → `404`.
+
 ## Redefinir senha de outro usuário (só admin)
 
 ```bash
@@ -196,12 +214,16 @@ curl -s -b cookies.txt "http://localhost:8000/datasets/ID_DO_DATASET/profile"
 ## Interface web (navegador)
 
 - `http://localhost:8000/login` — tela de login. Senha errada mostra a mensagem de erro na própria tela.
-- `http://localhost:8000/` — home. Sem sessão, redireciona para o login. Admin vê o botão "Módulo administrador".
+- `http://localhost:8000/` — home com painel de resumo. Sem sessão, redireciona para o login. Admin vê cartões de usuários/CPU/memória e a atividade administrativa; usuário comum vê só os próprios datasets.
+- `GET /dashboard/summary` — confira que a resposta para um usuário comum (`curl -s -b cookies.txt http://localhost:8000/dashboard/summary`) não tem a chave `"admin"` em nenhuma hipótese.
 - `http://localhost:8000/admin/users` — gestão de usuários (só admin). Usuário comum é redirecionado para a home.
 - `http://localhost:8000/admin/metrics` — métricas (só admin). O horário "Atualizado às" deve mudar a cada ~5 segundos com a aba aberta.
 - `http://localhost:8000/admin/files` — explorador de arquivos (só admin). Clique numa pasta para entrar, use o breadcrumb para voltar. Abrir `exemplo.env` deve mostrar "Tipo de arquivo não permitido".
 - `http://localhost:8000/admin/logs` — logs (só admin). Teste de XSS via log: tente logar (sem sucesso) com o usuário `<img src=x onerror=alert(1)>`; na página de logs ele deve aparecer como texto, sem disparar alerta.
 - Teste de XSS: crie pela tela um usuário chamado `<img src=x onerror=alert(1)>`. Ele deve aparecer na tabela como texto, sem disparar alerta.
+
+- `http://localhost:8000/meus-datasets` — enviar e perfilar datasets (todo usuário logado, não só admin). Arraste um `.csv` ou clique na área para escolher; a barra de progresso deve avançar durante o envio. Clique em "Perfil" num dataset recém-enviado: deve mostrar "Ainda não perfilado" com o botão "Calcular perfil", e a "Amostra dos dados" (primeiras linhas) deve aparecer mesmo antes de calcular o perfil.
+- Após calcular o perfil: colunas numéricas mostram Mín./Máx./Média/Mediana e um histograma (gráfico de barras real, via Chart.js); colunas de texto mostram os 5 valores mais frequentes, tanto em barra CSS quanto em gráfico Chart.js.
 
 ## Documentação interativa (Swagger)
 

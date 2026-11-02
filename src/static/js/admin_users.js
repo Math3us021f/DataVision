@@ -5,7 +5,7 @@ const PAGE_SIZE = 20;
 
 const tableBody = document.getElementById("users-table-body");
 const usersCount = document.getElementById("users-count");
-const emptyState = document.getElementById("users-empty");
+const stateBox = document.getElementById("users-state");
 const searchInput = document.getElementById("users-search");
 const statusSelect = document.getElementById("users-status");
 const prevButton = document.getElementById("users-prev");
@@ -33,6 +33,58 @@ function renderSkeleton(rows = 5) {
     }
 }
 
+// ---------- Menu de ações por linha ("⋯") ----------
+
+function closeAllRowMenus() {
+    document.querySelectorAll(".row-menu__list").forEach((list) => {
+        list.hidden = true;
+        list.previousElementSibling.setAttribute("aria-expanded", "false");
+    });
+}
+
+function buildRowMenu(items, username) {
+    const wrapper = el("div", "row-menu");
+
+    const trigger = el("button", "icon-button row-menu__trigger");
+    trigger.type = "button";
+    trigger.setAttribute("aria-haspopup", "menu");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-label", `Ações para ${username}`);
+    trigger.append(document.getElementById("icon-more").content.cloneNode(true));
+
+    const list = el("div", "row-menu__list");
+    list.setAttribute("role", "menu");
+    list.hidden = true;
+
+    for (const item of items) {
+        const option = el("button", `row-menu__item${item.danger ? " row-menu__item--danger" : ""}`, item.label);
+        option.type = "button";
+        option.setAttribute("role", "menuitem");
+        option.addEventListener("click", () => {
+            closeAllRowMenus();
+            item.onClick();
+        });
+        list.append(option);
+    }
+
+    trigger.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const willOpen = list.hidden;
+        closeAllRowMenus();
+        list.hidden = !willOpen;
+        trigger.setAttribute("aria-expanded", String(willOpen));
+        if (willOpen) list.querySelector("button").focus();
+    });
+
+    wrapper.append(trigger, list);
+    return wrapper;
+}
+
+document.addEventListener("click", closeAllRowMenus);
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeAllRowMenus();
+});
+
 function renderPagination() {
     const totalPages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
     const first = state.total === 0 ? 0 : (state.page - 1) * PAGE_SIZE + 1;
@@ -47,7 +99,15 @@ function renderPagination() {
 function renderUsers(users) {
     currentPageUsers = users;
     tableBody.replaceChildren();
-    emptyState.hidden = users.length > 0;
+    stateBox.hidden = true;
+    if (users.length === 0) {
+        const filtering = state.search || state.status !== "all";
+        renderState(stateBox, {
+            kind: "empty",
+            title: "Nenhum usuário encontrado",
+            message: filtering ? "Tente outro termo de busca ou mude o filtro de status." : "Crie o primeiro usuário pelo botão \"Novo usuário\".",
+        });
+    }
 
     for (const user of users) {
         const isMe = user.username === window.CURRENT_USERNAME;
@@ -88,27 +148,18 @@ function renderUsers(users) {
         );
 
         const actionCell = el("td", "actions");
-        const group = el("div", "actions-group");
-
-        const resetButton = el("button", "button--small button--secondary", "Redefinir senha");
-        // A própria senha se troca em "Minha conta", exigindo a senha atual.
-        resetButton.disabled = isMe;
-        resetButton.title = isMe ? "Troque sua senha em Minha conta" : "";
-        resetButton.addEventListener("click", () => openResetDialog(user));
-
-        const toggleButton = el("button",
-            `button--small ${user.is_active ? "button--ghost-danger" : "button--ghost-success"}`,
-            user.is_active ? "Desativar" : "Ativar");
-        // O backend já impede o admin de se desativar; aqui só evitamos o clique inútil.
-        toggleButton.disabled = isMe;
-        toggleButton.addEventListener("click", () => toggleActive(user));
-
-        const deleteButton = el("button", "button--small button--danger", "Excluir");
-        deleteButton.disabled = isMe;
-        deleteButton.addEventListener("click", () => deleteUser(user));
-
-        group.append(resetButton, toggleButton, deleteButton);
-        actionCell.append(group);
+        if (isMe) {
+            // A própria conta não tem ações aqui: a senha se troca em "Minha conta".
+            actionCell.append(el("span", "muted", "—"));
+        } else {
+            actionCell.append(buildRowMenu([
+                { label: "Redefinir senha", onClick: () => openResetDialog(user) },
+                user.is_active
+                    ? { label: "Desativar", onClick: () => toggleActive(user), danger: true }
+                    : { label: "Ativar", onClick: () => toggleActive(user) },
+                { label: "Excluir", onClick: () => deleteUser(user), danger: true },
+            ], user.username));
+        }
         row.append(userCell, roleCell, statusCell, actionCell);
         tableBody.append(row);
     }
@@ -133,12 +184,13 @@ async function loadUsers() {
             return loadUsers();
         }
 
-        usersCount.textContent = `${data.total} ${data.total === 1 ? "usuário encontrado" : "usuários encontrados"}`;
+        usersCount.textContent = `${data.total} ${data.total === 1 ? "usuário" : "usuários"}`;
         renderUsers(data.items);
         renderPagination();
         updateBulkBar();
     } catch (err) {
-        showToast(err.message, "error");
+        tableBody.replaceChildren();
+        renderState(stateBox, { kind: "error", title: "Não foi possível carregar os usuários", message: err.message });
     }
 }
 
@@ -176,6 +228,30 @@ async function deleteUser(user) {
         await apiRequest(`/users/${user.id}`, { method: "DELETE" });
         selected.delete(user.id);
         showToast(`Usuário "${user.username}" excluído.`, "success");
+        await loadUsers();
+    } catch (err) {
+        if (err.status === 409) {
+            await offerForceDelete(user, err.message);
+            return;
+        }
+        showToast(err.message, "error");
+    }
+}
+
+// Usuário com datasets: o servidor recusou (409) e explicou o motivo na mensagem.
+// Uma segunda confirmação, mais séria, é exigida antes de apagar os arquivos junto.
+async function offerForceDelete(user, reason) {
+    const confirmed = await confirmAction({
+        title: "Apagar também os datasets?",
+        message: `${reason} Esta segunda confirmação apaga TUDO: usuário, datasets e arquivos no MinIO, sem volta.`,
+        confirmLabel: "Apagar tudo",
+    });
+    if (!confirmed) return;
+
+    try {
+        await apiRequest(`/users/${user.id}?force=true`, { method: "DELETE" });
+        selected.delete(user.id);
+        showToast(`Usuário "${user.username}" e seus datasets foram excluídos.`, "success");
         await loadUsers();
     } catch (err) {
         showToast(err.message, "error");
@@ -219,7 +295,9 @@ document.getElementById("bulk-clear").addEventListener("click", () => {
 
 // Chama o endpoint de cada usuário, um por vez: cada um passa pelas mesmas
 // validações e entra na auditoria individualmente. Falhas não interrompem o lote.
-async function runBulk(users, request, verb) {
+// Devolve { ok, failures } em vez de já mostrar o resultado, para quem chama decidir o que fazer
+// com as falhas (ex: excluir em lote oferece forçar só quem falhou por ter datasets).
+async function runBulk(users, request) {
     let ok = 0;
     const failures = [];
     for (const user of users) {
@@ -228,22 +306,28 @@ async function runBulk(users, request, verb) {
             ok += 1;
             selected.delete(user.id);
         } catch (err) {
-            failures.push(`${user.username}: ${err.message}`);
+            failures.push({ user, err });
         }
     }
-
-    if (ok) showToast(`${ok} ${ok === 1 ? "usuário" : "usuários"} ${verb}.`, "success");
-    if (failures.length) {
-        showToast(`${failures.length} não ${failures.length === 1 ? "pôde" : "puderam"} ser ${verb}. ${failures[0]}`, "error");
-    }
-    await loadUsers();
+    return { ok, failures };
 }
 
-document.getElementById("bulk-activate").addEventListener("click", () => {
+function reportBulkResult({ ok, failures }, verb) {
+    if (ok) showToast(`${ok} ${ok === 1 ? "usuário" : "usuários"} ${verb}.`, "success");
+    if (failures.length) {
+        showToast(
+            `${failures.length} não ${failures.length === 1 ? "pôde" : "puderam"} ser ${verb}. ${failures[0].user.username}: ${failures[0].err.message}`,
+            "error",
+        );
+    }
+}
+
+document.getElementById("bulk-activate").addEventListener("click", async () => {
     const users = [...selected.values()];
-    runBulk(users, (u) => apiRequest(`/users/${u.id}`, {
+    reportBulkResult(await runBulk(users, (u) => apiRequest(`/users/${u.id}`, {
         method: "PATCH", body: JSON.stringify({ is_active: true }),
-    }), "ativados");
+    })), "ativados");
+    await loadUsers();
 });
 
 document.getElementById("bulk-deactivate").addEventListener("click", async () => {
@@ -254,20 +338,49 @@ document.getElementById("bulk-deactivate").addEventListener("click", async () =>
         confirmLabel: "Desativar",
     });
     if (!confirmed) return;
-    runBulk(users, (u) => apiRequest(`/users/${u.id}`, {
+    reportBulkResult(await runBulk(users, (u) => apiRequest(`/users/${u.id}`, {
         method: "PATCH", body: JSON.stringify({ is_active: false }),
-    }), "desativados");
+    })), "desativados");
+    await loadUsers();
 });
 
 document.getElementById("bulk-delete").addEventListener("click", async () => {
     const users = [...selected.values()];
     const confirmed = await confirmAction({
         title: `Excluir ${users.length} ${users.length === 1 ? "usuário" : "usuários"} permanentemente?`,
-        message: "Não dá para desfazer. O histórico de auditoria é mantido. Usuários com datasets serão pulados (desative-os em vez disso).",
+        message: "Não dá para desfazer. O histórico de auditoria é mantido. Quem tiver datasets será pulado nesta primeira passada — você poderá optar por apagar os dados deles também, em seguida.",
         confirmLabel: `Excluir ${users.length}`,
     });
     if (!confirmed) return;
-    runBulk(users, (u) => apiRequest(`/users/${u.id}`, { method: "DELETE" }), "excluídos");
+
+    const firstPass = await runBulk(users, (u) => apiRequest(`/users/${u.id}`, { method: "DELETE" }));
+    if (firstPass.ok) showToast(`${firstPass.ok} ${firstPass.ok === 1 ? "usuário" : "usuários"} excluído(s).`, "success");
+
+    const withDatasets = firstPass.failures.filter((f) => f.err.status === 409);
+    const otherFailures = firstPass.failures.filter((f) => f.err.status !== 409);
+    if (otherFailures.length) {
+        showToast(
+            `${otherFailures.length} não ${otherFailures.length === 1 ? "pôde" : "puderam"} ser excluído(s): ${otherFailures[0].user.username}: ${otherFailures[0].err.message}`,
+            "error",
+        );
+    }
+
+    if (withDatasets.length) {
+        const confirmedForce = await confirmAction({
+            title: `Apagar também os datasets de ${withDatasets.length} ${withDatasets.length === 1 ? "usuário" : "usuários"}?`,
+            message: "Esta segunda confirmação apaga usuário, datasets e os arquivos correspondentes no MinIO, de todos os selecionados abaixo. Sem volta.",
+            confirmLabel: "Apagar tudo",
+        });
+        if (confirmedForce) {
+            const secondPass = await runBulk(
+                withDatasets.map((f) => f.user),
+                (u) => apiRequest(`/users/${u.id}?force=true`, { method: "DELETE" }),
+            );
+            reportBulkResult(secondPass, "excluídos (com datasets)");
+        }
+    }
+
+    await loadUsers();
 });
 
 // ---------- Redefinir senha ----------
@@ -308,10 +421,18 @@ resetForm.addEventListener("submit", async (event) => {
 
 // ---------- Criar usuário ----------
 
+const createError = document.getElementById("create-user-error");
+
+document.getElementById("create-user-drawer").addEventListener("close", () => {
+    document.getElementById("create-user-form").reset();
+    createError.hidden = true;
+});
+
 document.getElementById("create-user-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const submit = document.getElementById("create-user-submit");
     submit.disabled = true;
+    createError.hidden = true;
 
     try {
         const created = await apiRequest("/users", {
@@ -322,11 +443,13 @@ document.getElementById("create-user-form").addEventListener("submit", async (ev
                 is_admin: document.getElementById("new-is-admin").checked,
             }),
         });
+        closeDrawer("create-user-drawer");
         showToast(`Usuário "${created.username}" criado.`, "success");
-        event.target.reset();
         await loadUsers();
     } catch (err) {
-        showToast(err.message, "error");
+        // O erro aparece dentro do painel, ao lado do formulário que o causou.
+        createError.textContent = err.message;
+        createError.hidden = false;
     } finally {
         submit.disabled = false;
     }

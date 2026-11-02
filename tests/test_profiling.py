@@ -51,9 +51,88 @@ def test_perfilamento_calcula_numeros_exatos(logged_client):
     assert body["duplicate_row_count"] == 1
 
     por_nome = {c["column_name"]: c for c in body["columns"]}
-    assert por_nome["nome"] == {"column_name": "nome", "inferred_type": "text", "null_count": 0, "distinct_count": 3}
-    assert por_nome["idade"] == {"column_name": "idade", "inferred_type": "float", "null_count": 1, "distinct_count": 2}
-    assert por_nome["cidade"] == {"column_name": "cidade", "inferred_type": "text", "null_count": 0, "distinct_count": 2}
+
+    # Colunas de texto não têm estatística numérica, mas têm os valores mais frequentes.
+    nome = por_nome["nome"]
+    assert nome["inferred_type"] == "text"
+    assert nome["null_count"] == 0
+    assert nome["distinct_count"] == 3
+    assert nome["min_value"] is None
+    top_nome = {t["value"]: t["count"] for t in nome["top_values"]}
+    assert top_nome == {"Ana": 2, "Bruno": 1, "Carla": 1}
+
+    cidade = por_nome["cidade"]
+    top_cidade = {t["value"]: t["count"] for t in cidade["top_values"]}
+    assert top_cidade == {"SP": 3, "RJ": 1}
+
+    # idade: valores não-nulos são [30, 25, 30] — min=25, max=30, média=85/3, mediana=30.
+    idade = por_nome["idade"]
+    assert idade["inferred_type"] == "float"
+    assert idade["null_count"] == 1
+    assert idade["distinct_count"] == 2
+    assert idade["min_value"] == 25.0
+    assert idade["max_value"] == 30.0
+    assert idade["mean_value"] == pytest.approx(85 / 3)
+    assert idade["median_value"] == 30.0
+
+
+def test_top_values_limita_a_5_e_coluna_numerica_nao_tem(logged_client):
+    linhas = "\n".join(f"item{i}" for i in range(8))
+    csv = f"categoria\n{linhas}\n".encode()
+    dataset_id = upload(logged_client, "categorias.csv", csv)
+
+    response = logged_client.post(f"/datasets/{dataset_id}/profile")
+    categoria = response.json()["columns"][0]
+
+    assert len(categoria["top_values"]) == 5
+    assert all(t["count"] == 1 for t in categoria["top_values"])
+
+
+def test_recalcular_nao_duplica_top_values(logged_client):
+    dataset_id = upload(logged_client, "dados.csv", CSV_CONHECIDO)
+    logged_client.post(f"/datasets/{dataset_id}/profile")
+    second = logged_client.post(f"/datasets/{dataset_id}/profile")
+
+    nome = next(c for c in second.json()["columns"] if c["column_name"] == "nome")
+    assert len(nome["top_values"]) == 3  # Ana, Bruno, Carla — não 6
+
+
+def test_histograma_de_coluna_numerica(logged_client):
+    valores = "\n".join(str(v) for v in range(1, 11))  # 1 a 10
+    csv = f"valor\n{valores}\n".encode()
+    dataset_id = upload(logged_client, "histograma.csv", csv)
+
+    response = logged_client.post(f"/datasets/{dataset_id}/profile")
+    coluna = response.json()["columns"][0]
+
+    assert coluna["histogram"]["bin_edges"][0] == 1.0
+    assert coluna["histogram"]["bin_edges"][-1] == 10.0
+    assert len(coluna["histogram"]["bin_edges"]) == 11  # 10 faixas = 11 limites
+    assert len(coluna["histogram"]["counts"]) == 10
+    assert sum(coluna["histogram"]["counts"]) == 10  # todo valor caiu em alguma faixa
+
+
+def test_coluna_de_texto_nao_tem_histograma(logged_client):
+    dataset_id = upload(logged_client, "dados.csv", CSV_CONHECIDO)
+    response = logged_client.post(f"/datasets/{dataset_id}/profile")
+
+    nome = next(c for c in response.json()["columns"] if c["column_name"] == "nome")
+    assert nome["histogram"] is None
+
+
+def test_coluna_numerica_totalmente_vazia_nao_tem_estatistica(logged_client):
+    csv_com_coluna_vazia = b"nome,valor\nAna,\nBruno,\n"
+    dataset_id = upload(logged_client, "vazio.csv", csv_com_coluna_vazia)
+
+    response = logged_client.post(f"/datasets/{dataset_id}/profile")
+    valor = next(c for c in response.json()["columns"] if c["column_name"] == "valor")
+
+    assert valor["null_count"] == 2
+    assert valor["min_value"] is None
+    assert valor["max_value"] is None
+    assert valor["mean_value"] is None
+    assert valor["median_value"] is None
+    assert valor["histogram"] is None
 
 
 def test_get_profile_retorna_o_que_foi_calculado(logged_client):

@@ -60,7 +60,59 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
   - `DELETE /users/{id}` (só admin). Bloqueios: não exclui a própria conta (`400`); usuário com datasets não é excluído (`409`, orientação de desativar), para não apagar arquivos do MinIO e perfilamentos em cascata.
   - Auditoria preservada: as chaves estrangeiras de `audit_logs` passaram a `ON DELETE SET NULL` (e `actor_user_id` aceita nulo). A exclusão gera um registro `delete_user` com id e nome em `details`. Testado: registros em que o usuário apagado era ator ou alvo continuam existindo.
   - Tela de usuários com caixa de seleção por linha, "selecionar todos" da página (com estado intermediário) e barra de lote (Ativar, Desativar, Excluir). A seleção persiste entre páginas e buscas. As ações em lote chamam o endpoint de cada usuário, um a um, para manter validações e auditoria individuais; falhas não interrompem o lote e aparecem num resumo. A própria conta não pode ser selecionada. 96 testes passando.
-- Pendente: exibição de datasets/perfilamento para o usuário comum.
+- Concluído em 2026-10-31: **padronização do layout (etapa 1 do plano de interface profissional).**
+  - Tema claro e escuro: botão na barra lateral, escolha guardada no navegador (`localStorage`); sem escolha, segue o tema do sistema operacional. Aplicado antes de desenhar a página, para não "piscar". Todas as cores passaram a ser variáveis CSS.
+  - Cabeçalho padrão desenhado pelo `layout.html`: cada página só declara `page_title`, `breadcrumb` e os blocos `page_subtitle`/`page_actions`.
+  - Painel lateral (`<dialog class="drawer">`) para formulários: "Novo usuário" saiu do topo da página; erros aparecem dentro do painel.
+  - Ações por linha da tabela de usuários num menu "⋯" (antes eram três botões que não cabiam na linha).
+  - Estados de tela padronizados (`renderState` em `ui.js`): vazio e erro, com ícone e mensagem.
+  - Celular: barra lateral vira menu deslizante (botão ☰, fecha no fundo escurecido ou com Esc).
+  - Foco visível para navegação por teclado (`:focus-visible`).
+  - Testado no navegador nos dois temas e em tamanho de celular. 96 testes passando.
+- Concluído em 2026-10-31/11-01: **home com painel de resumo (etapa 2 do plano de interface profissional).**
+  - `GET /dashboard/summary` — separação por perfil feita no servidor, não na tela: usuário comum recebe só `mine` (datasets próprios: quantidade, espaço usado, quantos perfilados, últimos 5 envios); a chave `admin` (usuários ativos/inativos/total, total de datasets do sistema, últimas 8 ações da auditoria) só existe na resposta para quem é admin — testado que o campo nem aparece para usuário comum, não é só escondido na tela.
+  - Home: cartões de estatística (datasets, espaço, perfilados; para admin também usuários ativos, datasets totais, CPU e memória ao vivo), lista dos últimos envios e, para admin, lista das últimas ações administrativas traduzidas (`create_user`, `reset_password`, etc.) com horário convertido para o fuso do navegador.
+  - Métricas (CPU/memória) buscadas à parte do resumo: se `/metrics/system` falhar, não derruba o resto do painel, só mostra "indisponível" nesses dois cartões.
+  - Testado no navegador logado como usuário comum recém-criado: cartões zerados, estado vazio com mensagem, nenhum cartão de admin.
+  - 8 testes novos conferindo números exatos e a separação por perfil.
+- Concluído em 2026-11-01: exclusão de datasets e exclusão forçada de usuário.
+  - `DELETE /datasets/{id}` (dono ou admin pelo endpoint de usuário): apaga o objeto no MinIO (sem travar a exclusão se o MinIO falhar — fica registrado como aviso, para não deixar o registro preso para sempre), o perfilamento e o registro em `datasets`.
+  - `DELETE /users/{id}?force=true`: sem `force`, continua bloqueado por `409` se houver datasets (comportamento da Etapa 8, mantido como padrão seguro). Com `force=true`, apaga os datasets do usuário (reaproveitando a função acima) antes de excluir a conta. Fica registrado em `audit_logs` como `force_delete_user_datasets`, com a contagem, além do `delete_user` de sempre.
+  - Tela: ao excluir alguém com datasets, aparece uma **segunda confirmação**, mais explícita ("Apagar tudo"), depois da primeira. Testado no navegador com um usuário real (`user_b55a8253`, 1 dataset): confirmei no banco e no MinIO que usuário, dataset e arquivo sumiram, e a auditoria ficou gravada.
+  - 11 testes novos (114 no total), incluindo verificação real do objeto no MinIO antes/depois (`stat_object`).
+- Concluído em 2026-11-01: exclusão em lote passou a oferecer forçar quem tem dataset. Antes, a barra de ações em lote só excluía quem não tinha dataset e avisava os demais como "não puderam" — travava exatamente no caso de uso real (vários usuários de teste com datasets). Agora: 1ª passada exclui quem pode; quem falhar por `409` (tem dataset) entra numa segunda confirmação explícita ("Apagar tudo"); confirmando, uma 2ª passada chama `?force=true` só para esses. Falhas por outro motivo (ex: a própria conta, se alguém se selecionar) continuam separadas e não entram na oferta de forçar. Testado no navegador com 3 usuários reais com dataset cada: a segunda confirmação apareceu, os 3 sumiram do banco e do MinIO.
+- Concluído em 2026-11-01: **telas de datasets e perfilamento (etapa 3 do plano de interface profissional).**
+  - Nova página `/meus-datasets` (renomeada de `/datasets` para não colidir com a rota de API `GET /datasets`, que lista — as duas competiam pelo mesmo caminho e a API vencia), visível no menu para todo usuário logado, não só admin.
+  - Upload por arrastar-e-soltar ou clique, com barra de progresso real via `XMLHttpRequest` (`fetch` não expõe progresso de upload). Validação de extensão/tamanho no cliente é só usabilidade — quem valida de verdade continua sendo o servidor (Etapa 9).
+  - Lista de datasets com exclusão (usa o `DELETE /datasets/{id}` da sessão anterior).
+  - Painel de perfilamento num painel lateral: aciona `GET` (se já perfilado) ou oferece "Calcular perfil" (`POST`) a partir daí; mostra linhas/duplicadas/colunas e, por coluna, o tipo inferido e barras de proporção de ausentes/distintos — sem biblioteca de gráficos, CSS puro.
+  - Decisão: mantido vanilla JS (sem Alpine/htmx), já que drag-and-drop e progresso de upload são bem suportados nativamente.
+  - Testado no navegador: upload real (simulado via `File`/`DataTransfer`, já que diálogo de arquivo do SO não é automatizável), perfilamento com números conferidos à mão (1 duplicata, colunas com % de ausentes/distintos exatos), exclusão, e teste de XSS pelo nome do arquivo (`<img onerror>`) — aparece como texto, nenhum `<img>` criado. Confirmado que usuário comum não vê os links de admin na página.
+  - 3 testes novos (117 no total) para a rota da página; a lógica de upload/perfilamento em si já tinha cobertura das Etapas 9–10.
+- Próximas etapas do plano de interface: 4) tela de auditoria; 5) testes de interface com Playwright.
+- Concluído: exibição de datasets/perfilamento para o usuário comum (ver item acima).
+- Concluído em 2026-11-01: **estatísticas numéricas por coluna (1ª de 3 melhorias do perfilamento).**
+  - `dataset_columns` ganhou `min_value`, `max_value`, `mean_value`, `median_value` (nulos para colunas não numéricas, ou numéricas 100% vazias).
+  - Calculado em `profiling.py` só para colunas `integer`/`float`, ignorando valores ausentes.
+  - Tela: cada coluna numérica ganha um bloco "Mín./Máx./Média/Mediana" abaixo das barras existentes.
+  - Testado com números exatos (coluna com valores `[30, 25, NaN, 30]`: mín=25, máx=30, média=85/3≈28.33, mediana=30) e com uma coluna numérica inteiramente vazia (nenhuma estatística, sem erro). 118 testes passando (2 novos).
+- Concluído em 2026-11-01: **top 5 valores por coluna de texto (2ª melhoria do perfilamento).**
+  - Tabela nova `dataset_column_top_values`, com `ON DELETE CASCADE` a partir de `dataset_columns` — recalcular o perfil ou excluir o dataset limpa os valores antigos sozinho, sem `DELETE` manual extra.
+  - Calculado só para colunas `text`, ignorando valores ausentes, limitado a 5.
+  - Tela: lista "Valores mais frequentes" com barra proporcional ao maior valor, abaixo das métricas de cada coluna de texto.
+  - Testado com números exatos (Ana: 2, Bruno: 1, Carla: 1; depois um caso com 8 valores distintos confirmando o corte em 5) e visualmente no navegador (SP=8, RJ=3, MG=1, barras proporcionais corretas). Confirmado que recalcular não duplica os valores antigos. 120 testes passando (2 novos).
+- Concluído em 2026-11-01: **amostra dos dados reais (3ª e última melhoria do perfilamento planejada).**
+  - `GET /datasets/{id}/sample` — primeiras 20 linhas, calculado na hora (sem tabela nova; é barato, só `head()` do que já é lido para o perfilamento). Funciona mesmo sem o dataset ter sido perfilado ainda.
+  - Valores ausentes viram `null` no JSON (tratados explicitamente — por padrão, `NaN` do pandas vira um token `NaN` inválido em JSON estrito). Cada célula é convertida para texto: é uma prévia visual, não dado para reprocessar.
+  - Tela: tabela com rolagem horizontal no topo do painel de perfilamento, "X de Y linha(s)", carrega em paralelo com o perfil (não depende de ter sido calculado).
+  - Testado com números exatos (valor ausente aparece como `null`/"—"; limite de 20 confirmado com 30 linhas enviadas, `total_rows` continua mostrando 30) e visualmente no navegador. 126 testes passando (6 novos).
+- As 3 melhorias de perfilamento planejadas (estatísticas, top valores, amostra) estão concluídas.
+- Concluído em 2026-11-01: **Etapa 11 do roteiro original — dashboards automáticos por regras Python, um gráfico por coluna.**
+  - Regra: coluna numérica → histograma (10 faixas, calculado com `numpy.histogram` no momento do perfilamento); coluna de texto → barras dos 5 valores mais frequentes (reaproveita o que já existia). Nada de IA generativa, como o `CLAUDE.md` pede explicitamente nesta etapa.
+  - Histograma salvo como `JSONB` em `dataset_columns.histogram` (`{bin_edges, counts}`) — não precisou de tabela nova, diferente dos top values.
+  - Biblioteca nova: **Chart.js 4.4.4**, via CDN (`cdn.jsdelivr.net`, sem build step). A versão pinada em `cdnjs.cloudflare.com` que tentei primeiro não existe mais lá (só a 4.6.1 está disponível) — troquei para jsdelivr, que mantém versões antigas.
+  - **Bug real encontrado e corrigido:** o canvas do gráfico ficou com 8302px de altura (devia ter 160px) porque ele estava solto dentro de um painel com rolagem, sem um elemento-pai de tamanho fixo — o Chart.js "responsivo" mede o ancestral mais próximo com altura definida, e sem um `wrapper` dedicado ele pegou a altura do scroll inteiro. Corrigido com uma `div` wrapper com `height: 160px` fixo envolvendo cada canvas.
+  - Testado com números exatos: 20 valores (idades 20–39) em 10 faixas iguais deram exatamente 2 por barra; texto com SP=10/RJ=6/MG=2/BA=2 bateu nos dois gráficos (CSS e Chart.js, lado a lado). 2 testes novos no backend (128 no total) — a renderização em si não tem teste automatizado, só verificação manual no navegador, como o resto do frontend.
 
 ## Próximo passo recomendado
 

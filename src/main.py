@@ -17,6 +17,7 @@ from src.db import get_connection
 from src.logging_config import logger, setup_logging
 from src.rate_limit import is_locked_out, register_failed_attempt, reset_attempts
 from src.routers.account import router as account_router
+from src.routers.dashboard import router as dashboard_router
 from src.routers.datasets import router as datasets_router
 from src.routers.files import router as files_router
 from src.routers.logs import router as logs_router
@@ -101,7 +102,25 @@ def init_db() -> None:
                 column_name TEXT NOT NULL,
                 inferred_type TEXT NOT NULL,
                 null_count INTEGER NOT NULL,
-                distinct_count INTEGER NOT NULL
+                distinct_count INTEGER NOT NULL,
+                min_value DOUBLE PRECISION,
+                max_value DOUBLE PRECISION,
+                mean_value DOUBLE PRECISION,
+                median_value DOUBLE PRECISION,
+                histogram JSONB
+            )
+            """
+        )
+        for column in ("min_value", "max_value", "mean_value", "median_value"):
+            conn.execute(f"ALTER TABLE dataset_columns ADD COLUMN IF NOT EXISTS {column} DOUBLE PRECISION")
+        conn.execute("ALTER TABLE dataset_columns ADD COLUMN IF NOT EXISTS histogram JSONB")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dataset_column_top_values (
+                id SERIAL PRIMARY KEY,
+                dataset_column_id INTEGER NOT NULL REFERENCES dataset_columns (id) ON DELETE CASCADE,
+                value TEXT NOT NULL,
+                occurrence_count INTEGER NOT NULL
             )
             """
         )
@@ -137,6 +156,7 @@ app.include_router(logs_router)
 app.include_router(files_router)
 app.include_router(datasets_router)
 app.include_router(account_router)
+app.include_router(dashboard_router)
 app.include_router(web_router)
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
 

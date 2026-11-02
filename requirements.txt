@@ -8,6 +8,7 @@ psutil
 minio
 python-multipart
 pandas
+numpy
 openpyxl
 pytest
 httpx

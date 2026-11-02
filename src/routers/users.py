@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from src.auth import hash_password, require_admin, validate_new_password
 from src.db import get_connection
 from src.logging_config import logger
+from src.routers.datasets import delete_dataset_core
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -134,7 +135,7 @@ def set_user_active(user_id: int, data: UpdateActiveRequest, admin: dict = Depen
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: int, admin: dict = Depends(require_admin)) -> None:
+def delete_user(user_id: int, force: bool = Query(default=False), admin: dict = Depends(require_admin)) -> None:
     if user_id == admin["id"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Você não pode excluir a própria conta")
 
@@ -143,15 +144,28 @@ def delete_user(user_id: int, admin: dict = Depends(require_admin)) -> None:
         if target is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
 
-        # Apagar datasets exigiria apagar também os arquivos no MinIO e os perfilamentos:
-        # exclusão de dados em cascata fica fora do escopo. Nesse caso, a saída é desativar.
-        dataset_count = conn.execute(
-            "SELECT COUNT(*) AS total FROM datasets WHERE owner_user_id = %s", (user_id,)
-        ).fetchone()["total"]
-        if dataset_count:
+        datasets = conn.execute(
+            "SELECT id, object_key FROM datasets WHERE owner_user_id = %s", (user_id,)
+        ).fetchall()
+
+        if datasets and not force:
+            # Sem ?force=true, excluir fica bloqueado: apagar datasets é irreversível
+            # (arquivo no MinIO junto), então exige uma confirmação explícita à parte.
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Este usuário possui {dataset_count} dataset(s) e não pode ser excluído. Desative a conta em vez disso.",
+                detail=(
+                    f"Este usuário possui {len(datasets)} dataset(s). Excluir também vai apagar "
+                    "os arquivos no MinIO, de forma irreversível. Confirme para prosseguir, ou "
+                    "desative a conta em vez disso."
+                ),
+            )
+
+        if datasets:
+            for dataset in datasets:
+                delete_dataset_core(conn, dataset["id"], dataset["object_key"])
+            log_action(
+                conn, admin["id"], "force_delete_user_datasets",
+                target_user_id=user_id, details=f"{len(datasets)} dataset(s) apagados",
             )
 
         conn.execute("DELETE FROM users WHERE id = %s", (user_id,))
@@ -159,7 +173,10 @@ def delete_user(user_id: int, admin: dict = Depends(require_admin)) -> None:
         log_action(conn, admin["id"], "delete_user", details=f"id={target['id']} username={target['username']!r}")
         conn.commit()
 
-    logger.info("delete_user: id=%s username=%r por admin_id=%s", target["id"], target["username"], admin["id"])
+    logger.info(
+        "delete_user: id=%s username=%r por admin_id=%s datasets_apagados=%s",
+        target["id"], target["username"], admin["id"], len(datasets),
+    )
 
 
 class ResetPasswordRequest(BaseModel):

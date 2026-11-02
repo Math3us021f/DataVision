@@ -87,7 +87,7 @@ def test_admin_users_para_nao_admin_redireciona_para_home(non_admin_client):
 def test_admin_users_para_admin_renderiza(admin_client):
     response = admin_client.get("/admin/users")
     assert response.status_code == 200
-    assert "Usuários cadastrados" in response.text
+    assert 'id="users-table-body"' in response.text
 
 
 def test_admin_metrics_para_admin_renderiza(admin_client):
@@ -142,6 +142,23 @@ def test_admin_files_sem_sessao_redireciona_para_login(client):
     response = client.get("/admin/files")
     assert response.status_code in (302, 307)
     assert response.headers["location"] == "/login"
+
+
+def test_meus_datasets_sem_sessao_redireciona_para_login(client):
+    response = client.get("/meus-datasets")
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/login"
+
+
+def test_meus_datasets_renderiza_para_usuario_comum(non_admin_client):
+    response = non_admin_client.get("/meus-datasets")
+    assert response.status_code == 200
+    assert 'id="datasets-table-body"' in response.text
+
+
+def test_meus_datasets_nao_mostra_links_de_admin_para_usuario_comum(non_admin_client):
+    html = non_admin_client.get("/meus-datasets").text
+    assert 'href="/admin/users"' not in html
 
 
 def test_admin_index_redireciona_para_usuarios(admin_client):

@@ -1,47 +1,19 @@
 {% extends "admin/base_admin.html" %}
 {% from "_icons.html" import icon %}
 {% set active = "users" %}
+{% set page_title = "Usuários" %}
+{% set breadcrumb = ["Administração", "Usuários"] %}
 
 {% block title %}Usuários — DataVision{% endblock %}
 
+{% block page_subtitle %}Contas com acesso ao DataVision. Não existe cadastro público.{% endblock %}
+
+{% block page_actions %}
+<button type="button" data-drawer-open="create-user-drawer">{{ icon("plus") }} Novo usuário</button>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1>Usuários</h1>
-        <p class="page-header__subtitle">Contas com acesso ao DataVision. Não existe cadastro público.</p>
-    </div>
-</div>
-
 <section class="card card--wide">
-    <div class="card__header">
-        <div>
-            <h2>Novo usuário</h2>
-            <div class="card__subtitle">A conta fica ativa assim que é criada.</div>
-        </div>
-    </div>
-    <form id="create-user-form" class="form form--inline">
-        <div class="field">
-            <label for="new-username">Usuário</label>
-            <input type="text" id="new-username" required>
-        </div>
-        <div class="field">
-            <label for="new-password">Senha</label>
-            <input type="password" id="new-password" autocomplete="new-password" required minlength="8" placeholder="mínimo 8 caracteres">
-        </div>
-        <label class="checkbox">
-            <input type="checkbox" id="new-is-admin"> Administrador
-        </label>
-        <button type="submit" id="create-user-submit">{{ icon("plus") }} Criar usuário</button>
-    </form>
-</section>
-
-<section class="card card--wide">
-    <div class="card__header">
-        <div>
-            <h2>Usuários cadastrados</h2>
-            <div class="card__subtitle" id="users-count"></div>
-        </div>
-    </div>
     <div class="toolbar">
         <div class="field field--grow">
             <label for="users-search">Buscar</label>
@@ -55,7 +27,9 @@
                 <option value="inactive">Inativos</option>
             </select>
         </div>
+        <span class="muted toolbar__count" id="users-count"></span>
     </div>
+
     <div class="bulk-bar" id="bulk-bar" hidden>
         <span id="bulk-count"></span>
         <div class="actions-group">
@@ -65,6 +39,7 @@
             <button type="button" class="button--small button--secondary" id="bulk-clear">Limpar seleção</button>
         </div>
     </div>
+
     <div class="table-wrapper">
         <table class="table">
             <thead>
@@ -79,7 +54,8 @@
             <tbody id="users-table-body"></tbody>
         </table>
     </div>
-    <p id="users-empty" class="empty-state" hidden>Nenhum usuário encontrado.</p>
+    <div id="users-state" hidden></div>
+
     <div class="pagination">
         <span class="muted" id="users-range"></span>
         <div class="pagination__controls">
@@ -89,6 +65,39 @@
         </div>
     </div>
 </section>
+
+<template id="icon-more">{{ icon("more") }}</template>
+
+<dialog class="drawer" id="create-user-drawer" aria-labelledby="create-user-title">
+    <form id="create-user-form" class="drawer__form">
+        <div class="drawer__header">
+            <div>
+                <h2 id="create-user-title">Novo usuário</h2>
+                <div class="card__subtitle">A conta fica ativa assim que é criada.</div>
+            </div>
+            <button type="button" class="icon-button" data-drawer-close aria-label="Fechar">{{ icon("close") }}</button>
+        </div>
+        <div class="drawer__body form">
+            <div class="field">
+                <label for="new-username">Usuário</label>
+                <input type="text" id="new-username" autocomplete="off" required>
+            </div>
+            <div class="field">
+                <label for="new-password">Senha inicial</label>
+                <input type="password" id="new-password" autocomplete="new-password" required minlength="8">
+                <span class="field__hint">Mínimo de 8 caracteres. O usuário pode trocá-la depois em "Minha conta".</span>
+            </div>
+            <label class="checkbox">
+                <input type="checkbox" id="new-is-admin"> Administrador
+            </label>
+            <div id="create-user-error" class="alert alert--danger" hidden></div>
+        </div>
+        <div class="drawer__footer">
+            <button type="button" class="button--secondary" data-drawer-close>Cancelar</button>
+            <button type="submit" id="create-user-submit">Criar usuário</button>
+        </div>
+    </form>
+</dialog>
 
 <dialog class="dialog" id="reset-dialog">
     <form id="reset-form" class="form">

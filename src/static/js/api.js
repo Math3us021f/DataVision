@@ -26,7 +26,9 @@ async function apiRequest(path, options = {}) {
         if (Array.isArray(message)) {
             message = message.map((e) => e.msg).join("; ");
         }
-        throw new Error(message);
+        const error = new Error(message);
+        error.status = response.status;
+        throw error;
     }
 
     return body;

@@ -22,6 +22,13 @@ def home_page(request: Request, user: dict | None = Depends(get_current_user_opt
     return templates.TemplateResponse(request, "home.html", {"user": user})
 
 
+@router.get("/meus-datasets")
+def datasets_page(request: Request, user: dict | None = Depends(get_current_user_optional)):
+    if user is None:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(request, "datasets.html", {"user": user})
+
+
 @router.get("/account")
 def account_page(request: Request, user: dict | None = Depends(get_current_user_optional)):
     if user is None:

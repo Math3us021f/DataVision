@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+{% from "_icons.html" import icon %}
+{% set active = "datasets" %}
+{% set page_title = "Datasets" %}
+
+{% block title %}Datasets — DataVision{% endblock %}
+
+{% block page_subtitle %}Envie arquivos CSV ou Excel (até 10 MB) para perfilar.{% endblock %}
+
+{% block content %}
+<section class="card card--wide">
+    <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Enviar arquivo CSV ou Excel">
+        <span class="metric__icon dropzone__icon">{{ icon("inbox") }}</span>
+        <p class="dropzone__title">Arraste um arquivo aqui ou clique para escolher</p>
+        <p class="muted">.csv ou .xlsx · até 10 MB</p>
+        <input type="file" id="file-input" accept=".csv,.xlsx" hidden>
+    </div>
+
+    <ul class="upload-queue" id="upload-queue"></ul>
+    <div id="upload-error" class="alert alert--danger" hidden></div>
+</section>
+
+<section class="card card--wide">
+    <div class="card__header"><h2>Meus datasets</h2></div>
+    <div class="table-wrapper">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Formato</th>
+                    <th>Tamanho</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="datasets-table-body"></tbody>
+        </table>
+    </div>
+    <div id="datasets-state" hidden></div>
+</section>
+
+<template id="icon-trash">{{ icon("trash") }}</template>
+
+<dialog class="drawer" id="profile-drawer" aria-labelledby="profile-title">
+    <div class="drawer__header">
+        <div>
+            <h2 id="profile-title">Perfilamento</h2>
+            <div class="card__subtitle" id="profile-subtitle"></div>
+        </div>
+        <button type="button" class="icon-button" data-drawer-close aria-label="Fechar">{{ icon("close") }}</button>
+    </div>
+    <div class="drawer__body">
+        <div id="profile-sample"></div>
+        <div id="profile-body"></div>
+    </div>
+    <div class="drawer__footer">
+        <button type="button" class="button--secondary" id="profile-recalculate">Recalcular</button>
+    </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="/static/js/datasets.js"></script>
+{% endblock %}

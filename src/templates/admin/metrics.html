@@ -1,17 +1,16 @@
 {% extends "admin/base_admin.html" %}
 {% from "_icons.html" import icon %}
 {% set active = "metrics" %}
+{% set page_title = "Métricas do sistema" %}
+{% set breadcrumb = ["Administração", "Métricas"] %}
 
 {% block title %}Métricas — DataVision{% endblock %}
 
+{% block page_subtitle %}Atualização automática a cada 5 segundos.{% endblock %}
+
+{% block page_actions %}<span id="metrics-updated" class="live-dot">Carregando...</span>{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1>Métricas do sistema</h1>
-        <p class="page-header__subtitle">Atualização automática a cada 5 segundos.</p>
-    </div>
-    <span id="metrics-updated" class="live-dot">Carregando...</span>
-</div>
 
 <div class="alert alert--info">{{ icon("info") }}<span id="metrics-scope"></span></div>
 <div id="metrics-error" class="alert alert--danger" hidden></div>
