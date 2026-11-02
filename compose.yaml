@@ -67,6 +67,20 @@ services:
       timeout: 5s
       retries: 10
 
+  e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    profiles: ["test"]
+    environment:
+      BASE_URL: http://app:8000
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    volumes:
+      - ./tests_e2e:/app/tests_e2e
+    depends_on:
+      - app
+
 volumes:
   db_data:
   minio_data:

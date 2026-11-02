@@ -68,6 +68,15 @@ docker compose exec app python -m pytest -v
 
 (Se os containers ainda não estiverem rodando, use `docker compose run --rm app python -m pytest -v` no lugar.)
 
+## Executar os testes de interface (Playwright)
+
+Testes end-to-end reais, num serviço Docker separado (profile `test`, com os navegadores já instalados — por isso não entra na imagem principal da aplicação). Exigem a aplicação de pé:
+
+```bash
+docker compose up -d
+docker compose --profile test run --rm e2e
+```
+
 ## Encerrar os serviços
 
 ```bash

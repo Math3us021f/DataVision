@@ -1,0 +1,13 @@
+# Imagem separada, só para os testes de interface (Playwright). Não participa da
+# imagem de produção: já vem com os navegadores instalados (vários GB), o que não
+# faria sentido no Dockerfile principal da aplicação.
+FROM mcr.microsoft.com/playwright/python:v1.48.0-noble
+
+WORKDIR /app
+
+COPY tests_e2e/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY tests_e2e/ ./tests_e2e/
+
+CMD ["pytest", "tests_e2e", "-v"]

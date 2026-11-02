@@ -126,11 +126,19 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
   - Tela: busca, filtro por ação (com rótulos em português) e paginação, seguindo o mesmo padrão visual de `/admin/users`. Só leitura — nenhuma ação é feita a partir desta tela.
   - Mostra ações administrativas sobre contas (`create_user`, `activate_user`, `deactivate_user`, `delete_user`, `force_delete_user_datasets`, `reset_password`, `change_own_password`). Eventos de login continuam só em `/admin/logs` (decisão da Etapa 6 original, não duplicada aqui).
   - Testado: 11 testes novos de API (busca, filtro, paginação, 401/403) e 3 de renderização da página (139 no total). Verificado visualmente no navegador com um admin temporário criado só para o teste (removido em seguida) — busca e filtro de ação confirmados funcionando contra os ~3400 registros de auditoria já acumulados no banco de dev.
-  - Pendente do plano de interface: Etapa 5 (testes Playwright).
+- Concluído em 2026-11-02: **Etapa 5 do plano de interface — testes de interface (Playwright).**
+  - Novo serviço Docker `e2e` (`compose.yaml`, profile `test`, imagem `mcr.microsoft.com/playwright/python:v1.48.0-noble` via `Dockerfile.e2e` próprio) — separado da imagem principal da aplicação, que continua sem navegadores instalados. Roda contra o serviço `app` de verdade pela rede interna do Compose (`http://app:8000`), nunca contra mocks. Decisão de onde rodar (serviço Docker separado vs. Python no host Windows) foi perguntada e confirmada antes de implementar.
+  - 7 testes em `tests_e2e/`: login com senha errada/certa, logout, redirecionamento sem sessão, admin cria usuário pela UI real (drawer) e ele aparece na busca, a criação de usuário aparece na tela de auditoria, e um usuário comum não vê (nem consegue acessar) links de administração.
+  - **Dois bugs reais de teste encontrados e corrigidos, não bugs da aplicação:** (1) o padrão glob `"**/"` do `wait_for_url` do Playwright combinava até com a URL `/login`, mascarando falhas de login — trocado por esperar um elemento que só existe após login (`.sidebar__username`); (2) o teste de "usuário comum não vê admin" reusava a mesma aba do admin para logar com o usuário novo, derrubando a própria sessão do admin no meio do teste — corrigido usando um contexto de navegador separado (`browser.new_context()`) para cada "ator".
+  - **Achado adicional, também de teste:** o primeiro teste de criação de usuário verificava a tabela sem buscar — como o banco de dev já acumula centenas de usuários de testes anteriores (ver nota em `docs/testes_manuais.md`), o usuário recém-criado nunca aparece na 1ª página sem busca. Corrigido usando o campo de busca da própria tela, como um usuário real faria.
+  - **Causa de instabilidade identificada e não-corrigida no código (não era bug):** durante o desenvolvimento, outra sessão (fork) editava arquivos da aplicação ao vivo no mesmo checkout, e o `--reload` do uvicorn reiniciava o servidor no meio dos testes, causando falhas intermitentes de login. Resolvido esperando essa sessão terminar — não há ação de código correspondente.
+  - Suíte E2E confirmada estável em 3 execuções consecutivas (7/7 passando). Suíte de integração (`pytest`) continua em 139 testes, sem relação com os testes de interface (ambientes/objetivos diferentes).
+  - Como rodar: `docker compose --profile test run --rm e2e` (a aplicação precisa estar de pé primeiro: `docker compose up -d`).
+  - Com isso, as 5 etapas do plano de interface estão concluídas.
 
 ## Próximo passo recomendado
 
-Etapa 4 do plano de interface (página de auditoria) concluída (139 testes passando). Falta a Etapa 5 (testes de interface com Playwright), ou avançar direto para a Etapa 12 do roteiro original (validação do MVP + inspeção do Ubuntu Server, somente leitura).
+Plano de interface (5 etapas) concluído. Avançar para a Etapa 12 do roteiro original: validação do MVP e inspeção do Ubuntu Server/MinIO existentes (somente leitura), antes de planejar o deploy.
 
 ## Pendências técnicas menores
 
