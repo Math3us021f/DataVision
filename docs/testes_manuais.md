@@ -179,6 +179,22 @@ curl -s -b cookies.txt "http://localhost:8000/logs/app?limit=20"
 - Sem estar logado → `401`. Logado mas não-admin → `403`.
 - Eventos registrados hoje: aplicação iniciada, login bem-sucedido/falho/negado (conta inativa), criação de usuário, ativação/desativação de usuário.
 
+## Consulta analítica para dashboards (dono do dataset)
+
+Pré-requisito: o dataset precisa estar perfilado (`POST /datasets/{id}/profile`).
+
+```bash
+curl -s -b cookies.txt -X POST http://localhost:8000/datasets/1/query \
+  -H "Content-Type: application/json" \
+  -d '{"chart":"bar","dimension":{"column":"cidade"},"metrics":[{"column":"valor","agg":"sum"}]}'
+```
+
+- Esperado: `{"categories":["MG","SP","RJ"],"series":[{"name":"Soma de valor","data":[100.0,30.0,20.0]}],"total_rows_matched":5,"truncated":false}` (para um CSV com cidades SP/RJ/MG e valores 10, 20, 5, 15, 100).
+- `chart`: `bar`, `line`, `pie` ou `kpi` (kpi não tem `dimension` e tem 1 métrica). `agg`: `sum`, `mean`, `count`, `min`, `max`, `count_distinct`. `time_grain` (`day`/`month`/`year`) só em coluna de data. Filtros: `{"column","op","value"}` com `op` em `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in` (valor é lista), `contains`.
+- `limit` (1–50, padrão 20) corta as categorias; `truncated: true` avisa que havia mais.
+- Dataset sem perfil → `409`. Coluna inexistente ou agregação incompatível (ex: `sum` em texto) → `422` com a explicação. Chave desconhecida no JSON → `422`. Dataset de outro usuário → `404`. Sem login → `401`.
+- Colunas de data só são reconhecidas em datasets **perfilados depois** desta mudança — reperfile datasets antigos. Formato `dd/mm/aaaa` é lido com dia primeiro; `aaaa-mm-dd` é lido como ISO.
+
 ## Auditoria (só admin)
 
 ```bash

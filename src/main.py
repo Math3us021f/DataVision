@@ -17,6 +17,7 @@ from src.core.db import get_connection
 from src.core.logging_config import logger, setup_logging
 from src.core.rate_limit import is_locked_out, register_failed_attempt, reset_attempts
 from src.routers.api.account import router as account_router
+from src.routers.api.analytics import router as analytics_router
 from src.routers.api.audit import router as audit_router
 from src.routers.api.dashboard import router as dashboard_router
 from src.routers.api.datasets import router as datasets_router
@@ -158,6 +159,7 @@ app.include_router(files_router)
 app.include_router(datasets_router)
 app.include_router(account_router)
 app.include_router(audit_router)
+app.include_router(analytics_router)
 app.include_router(dashboard_router)
 app.include_router(web_router)
 app.mount("/static", StaticFiles(directory="src/static"), name="static")

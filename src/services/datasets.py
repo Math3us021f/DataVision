@@ -212,6 +212,19 @@ def get_stored_profile(conn, dataset_id: int) -> dict:
     return {**profile, "columns": columns}
 
 
+def get_column_types(conn, dataset_id: int) -> dict[str, str] | None:
+    """nome da coluna -> inferred_type, do perfil salvo. None se o dataset ainda não foi perfilado."""
+    has_profile = conn.execute(
+        "SELECT 1 AS ok FROM dataset_profiles WHERE dataset_id = %s", (dataset_id,)
+    ).fetchone()
+    if has_profile is None:
+        return None
+    rows = conn.execute(
+        "SELECT column_name, inferred_type FROM dataset_columns WHERE dataset_id = %s", (dataset_id,)
+    ).fetchall()
+    return {row["column_name"]: row["inferred_type"] for row in rows}
+
+
 def _cell_to_str(value) -> str | None:
     """None para ausente (NaN/NaT); todo o resto vira texto — é uma amostra visual,
     não um valor que algum código vá reprocessar."""

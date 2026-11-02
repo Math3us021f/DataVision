@@ -136,6 +136,14 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
   - Como rodar: `docker compose --profile test run --rm e2e` (a aplicação precisa estar de pé primeiro: `docker compose up -d`).
   - Com isso, as 5 etapas do plano de interface estão concluídas.
 
+- Concluído em 2026-11-02: **backend do módulo de dashboards customizáveis (Etapa 11, parte 1 — só API, sem tela ainda).**
+  - Perfilamento passou a reconhecer `datetime` (antes o tipo existia no mapa mas nunca era produzido, pois CSV/XLSX trazem datas como texto): só vira data se ≥95% dos valores não nulos casarem com formato de data *e* parsearem. Parsing único em `parse_datetimes` (perfil e engine usam a mesma função). Ano na frente é sempre ISO; os demais formatos usam dia primeiro (pt-BR) — decisão a rever se entrarem planilhas americanas.
+  - **Bug real pego pelos testes:** aplicar `dayfirst=True` a tudo lia `2026-01-10` como 1º de outubro, sem erro nenhum — só os números conferidos à mão no teste mensal revelaram. Corrigido separando os dois grupos de formato.
+  - `POST /datasets/{id}/query` (dono do dataset): contrato fechado em Pydantic (`src/schemas/analytics.py`, `extra="forbid"`, limites de tamanho), validação contra o perfil (`validator.py`) e execução (`engine.py`) com agregações/operadores de lista fixa — sem `eval`/`df.query`, `contains` com `regex=False`. Resposta já em `categories`/`series`, pronta para o ECharts.
+  - Não usa SQLAlchemy: o projeto usa `psycopg` com SQL puro; a tabela `dashboards` (spec em JSONB, `ON DELETE CASCADE`) ainda **não** foi criada.
+  - 26 testes novos (165 no total): números exatos, filtros, agrupamento mensal, truncamento, 6 specs inválidas, chave desconhecida, dataset de outro usuário (404), sem perfil (409), anônimo (401).
+  - Pendente: tabela/CRUD `dashboards`, geração automática do dashboard padrão (regras sobre o perfil), tela com ECharts (vendorizado em `static/vendor`), limite de tempo de consulta, cache do DataFrame se ficar lento.
+
 ## Próximo passo recomendado
 
 Plano de interface (5 etapas) concluído. Avançar para a Etapa 12 do roteiro original: validação do MVP e inspeção do Ubuntu Server/MinIO existentes (somente leitura), antes de planejar o deploy.

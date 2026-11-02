@@ -1,5 +1,6 @@
 import io
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,44 @@ _KIND_TO_TYPE_NAME = {
 
 def _friendly_type_name(dtype) -> str:
     return _KIND_TO_TYPE_NAME.get(dtype.kind, "text")
+
+
+DATETIME_MIN_PARSE_RATE = 0.95
+DATETIME_SAMPLE_SIZE = 10_000
+# Exige formato de data (com separador) antes de tentar parsear: evita que "12345" ou códigos virem data.
+_DATE_SHAPE = re.compile(r"^\s*\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?\s*$")
+
+
+_YEAR_FIRST = re.compile(r"^\s*\d{4}[-/.]")
+
+
+def parse_datetimes(series: pd.Series) -> pd.Series:
+    """Único ponto de parsing de datas: perfilador e engine de analytics usam esta função.
+
+    Ano na frente (2026-01-10) é sempre ano-mês-dia. Nos demais formatos vale dayfirst=True, porque
+    o público é pt-BR ("01/02/2026" = 1º de fevereiro). Aplicar dayfirst a tudo trocaria dia e mês
+    das datas ISO sem avisar, então os dois grupos são parseados separadamente."""
+    text = series.astype("string")
+    year_first = text.str.match(_YEAR_FIRST).fillna(False).astype(bool)
+    parts = [
+        pd.to_datetime(text[year_first], errors="coerce", format="mixed", dayfirst=False),
+        pd.to_datetime(text[~year_first], errors="coerce", format="mixed", dayfirst=True),
+    ]
+    return pd.concat(parts).reindex(series.index)
+
+
+def _looks_like_datetime(series: pd.Series) -> bool:
+    sample = series.dropna().astype(str).head(DATETIME_SAMPLE_SIZE)
+    if sample.empty or sample.str.match(_DATE_SHAPE).mean() < DATETIME_MIN_PARSE_RATE:
+        return False
+    return parse_datetimes(sample).notna().mean() >= DATETIME_MIN_PARSE_RATE
+
+
+def infer_column_type(series: pd.Series) -> str:
+    inferred = _friendly_type_name(series.dtype)
+    if inferred == "text" and _looks_like_datetime(series):
+        return "datetime"
+    return inferred
 
 
 def load_dataframe(object_key: str, extension: str) -> pd.DataFrame:
@@ -81,7 +120,7 @@ def profile_dataframe(df: pd.DataFrame) -> dict:
     columns = []
     for column_name in df.columns:
         series = df[column_name]
-        inferred_type = _friendly_type_name(series.dtype)
+        inferred_type = infer_column_type(series)
         stats = _numeric_stats(series) if inferred_type in ("integer", "float") else None
         columns.append(
             {
