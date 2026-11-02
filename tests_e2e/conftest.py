@@ -38,5 +38,5 @@ def logged_in_admin(page, admin_credentials):
     page.locator("#login-submit").click()
     # Espera um elemento que só existe depois do login (nunca a URL: o padrão glob
     # "**/" do Playwright combina até com "/login", mascarando falha de login).
-    page.locator(".sidebar__username").wait_for(state="visible", timeout=10_000)
+    page.locator("#stat-datasets").wait_for(state="visible", timeout=10_000)  # Home da interface nova
     return page

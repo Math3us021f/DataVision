@@ -114,9 +114,8 @@ def test_tema_alterna_persiste_e_vale_na_interface_atual(logged_in_admin):
     page.reload()
     assert ("dark" in (html.get_attribute("class") or "")) != escuro_antes
 
-    page.goto("/")  # interface atual usa data-theme com a mesma chave
-    esperado = "light" if escuro_antes else "dark"
-    expect(page.locator("html")).to_have_attribute("data-theme", esperado)
+    page.goto("/app/admin/users")  # a escolha vale em todas as telas, inclusive as de administração
+    assert ("dark" in (page.locator("html").get_attribute("class") or "")) != escuro_antes
 
     page.goto("/app")
     page.get_by_role("button", name="Alternar tema claro/escuro").click()  # restaura

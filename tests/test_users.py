@@ -87,3 +87,34 @@ def test_admin_nao_pode_desativar_a_propria_conta(admin_client):
 
     response = admin_client.patch(f"/users/{admin_id}", json={"is_active": False})
     assert response.status_code == 400
+
+
+def summary_of(client) -> dict:
+    return client.get("/users/summary").json()
+
+
+def test_resumo_de_usuarios_acompanha_criacao_e_desativacao(admin_client):
+    before = summary_of(admin_client)
+    assert before["total"] == before["active"] + before["inactive"]
+    assert before["admins"] >= 1
+
+    created = admin_client.post("/users", json={"username": unique_username(), "password": "senha123"}).json()
+    after_create = summary_of(admin_client)
+    assert after_create["total"] == before["total"] + 1
+    assert after_create["active"] == before["active"] + 1
+    assert after_create["admins"] == before["admins"]
+
+    admin_client.patch(f"/users/{created['id']}", json={"is_active": False})
+    after_deactivate = summary_of(admin_client)
+    assert after_deactivate["active"] == before["active"]
+    assert after_deactivate["inactive"] == before["inactive"] + 1
+
+
+def test_resumo_de_usuarios_nao_vaza_para_nao_admin_nem_anonimo(admin_client, client):
+    username = unique_username()
+    admin_client.post("/users", json={"username": username, "password": "senha123"})
+    common = TestClient(app)
+    common.post("/login", json={"username": username, "password": "senha123"})
+
+    assert common.get("/users/summary").status_code == 403
+    assert client.get("/users/summary").status_code == 401

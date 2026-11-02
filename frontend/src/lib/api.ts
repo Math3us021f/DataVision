@@ -24,7 +24,8 @@ export async function api<T>(path: string, init: RequestInit = {}, signal?: Abor
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
+    // Na própria tela de login, 401 é "senha errada": mostra o erro em vez de recarregar a página.
+    if (response.status === 401 && window.location.pathname !== "/login") {
       window.location.href = "/login";
     }
     const detail = (body as { detail?: unknown } | null)?.detail;

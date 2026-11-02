@@ -27,14 +27,12 @@ interface Item {
   label: string;
   icon: LucideIcon;
   href: string;
-  /** Telas já migradas para o React navegam dentro do app; as demais abrem a página atual. */
-  internal?: boolean;
 }
 
 const MAIN: Item[] = [
-  { label: "Início", icon: House, href: "/", internal: true },
-  { label: "Datasets", icon: FileText, href: "/datasets", internal: true },
-  { label: "Minha conta", icon: KeyRound, href: "/account", internal: true },
+  { label: "Início", icon: House, href: "/" },
+  { label: "Datasets", icon: FileText, href: "/datasets" },
+  { label: "Minha conta", icon: KeyRound, href: "/account" },
 ];
 
 const ADMIN: Item[] = [
@@ -56,24 +54,17 @@ function NavItem({ item, collapsed }: { item: Item; collapsed: boolean }) {
     </>
   );
 
-  if (item.internal) {
-    return (
-      <NavLink
-        to={item.href}
-        end={item.href === "/"}
-        title={item.label}
-        className={({ isActive }) =>
-          cn(base, collapsed && "lg:justify-center lg:px-0", isActive && "bg-accent-soft text-foreground [&_svg]:text-accent")
-        }
-      >
-        {content}
-      </NavLink>
-    );
-  }
   return (
-    <a href={item.href} title={item.label} className={cn(base, collapsed && "lg:justify-center lg:px-0")}>
+    <NavLink
+      to={item.href}
+      end={item.href === "/"}
+      title={item.label}
+      className={({ isActive }) =>
+        cn(base, collapsed && "lg:justify-center lg:px-0", isActive && "bg-accent-soft text-foreground [&_svg]:text-accent")
+      }
+    >
       {content}
-    </a>
+    </NavLink>
   );
 }
 

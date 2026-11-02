@@ -3,7 +3,6 @@ uvicorn[standard]
 psycopg[binary]
 bcrypt
 itsdangerous
-jinja2
 psutil
 minio
 python-multipart

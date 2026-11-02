@@ -73,8 +73,16 @@ def test_anonimo_recebe_401():
         assert anon.get("/dashboard/summary").status_code == 401
 
 
-def test_home_do_usuario_comum_nao_tem_cartoes_de_admin(user_client):
-    html = user_client.get("/").text
-    assert 'id="stat-datasets"' in html
-    assert 'id="stat-users"' not in html
-    assert 'id="recent-audit"' not in html
+def test_envios_por_dia_cobrem_sete_dias_e_contam_so_os_proprios(admin_client, user_client):
+    upload(admin_client, "do_admin.csv")  # não pode aparecer para o outro usuário
+    vazio = user_client.get("/dashboard/summary").json()["uploads_by_day"]
+    assert len(vazio) == 7
+    assert [d["day"] for d in vazio] == sorted(d["day"] for d in vazio)  # do mais antigo para hoje
+    assert all(d["count"] == 0 for d in vazio)
+
+    upload(user_client)
+    upload(user_client, "outro.csv", b"x\n1\n")
+    dias = user_client.get("/dashboard/summary").json()["uploads_by_day"]
+    assert len(dias) == 7
+    assert dias[-1]["count"] == 2  # hoje
+    assert sum(d["count"] for d in dias) == 2

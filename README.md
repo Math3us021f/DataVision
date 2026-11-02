@@ -79,7 +79,7 @@ docker compose --profile test run --rm e2e
 
 ## Interface nova (React) — desenvolvimento
 
-A interface nova vive em `frontend/` e abre em `http://localhost:8000/app` (as páginas atuais continuam funcionando). O Node roda **só em container**; não precisa instalar nada no Windows.
+A interface nova vive em `frontend/` e abre em `http://localhost:8000/app` (é a única interface: o login em `/login` e as telas de administração em `/app/admin/...` também são dela; os endereços antigos — `/`, `/meus-datasets`, `/account` e `/admin/...` — redirecionam). O Node roda **só em container**; não precisa instalar nada no Windows.
 
 ```bash
 docker compose --profile frontend run --rm frontend

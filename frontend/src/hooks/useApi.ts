@@ -31,8 +31,14 @@ export function useApi<T>(path: string | null, refreshMs?: number) {
 
   useEffect(() => {
     if (!refreshMs || path === null) return;
-    const id = window.setInterval(() => setTick((t) => t + 1), refreshMs);
-    return () => window.clearInterval(id);
+    // Com a aba em segundo plano não consulta a API; ao voltar, atualiza na hora.
+    const id = window.setInterval(() => !document.hidden && setTick((t) => t + 1), refreshMs);
+    const onVisible = () => !document.hidden && setTick((t) => t + 1);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [refreshMs, path]);
 
   const reload = useCallback(() => setTick((t) => t + 1), []);

@@ -137,3 +137,45 @@ export interface SavedDashboard {
   filters: FilterSpec[];
   updated_at: string;
 }
+
+export interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface UserRow {
+  id: number;
+  username: string;
+  is_admin: boolean;
+  is_active: boolean;
+}
+
+export interface UsersSummary {
+  total: number;
+  active: number;
+  inactive: number;
+  admins: number;
+}
+
+export interface AuditLogRow {
+  id: number;
+  action: string;
+  details: string | null;
+  created_at: string;
+  actor_username: string | null;
+  target_username: string | null;
+}
+
+export interface FullMetrics extends SystemMetrics {
+  aviso_escopo: string;
+  disk: { total_bytes: number; used_bytes: number; percent: number };
+  network: { bytes_sent: number; bytes_recv: number };
+}
+
+export interface FileEntry {
+  name: string;
+  is_dir: boolean;
+  size_bytes: number | null;
+}

@@ -44,6 +44,20 @@ def create_user(data: CreateUserRequest, admin: dict = Depends(require_admin)) -
     return new_user
 
 
+@router.get("/summary")
+def users_summary(admin: dict = Depends(require_admin)) -> dict:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT COUNT(*) AS total,
+                   COUNT(*) FILTER (WHERE is_active) AS active,
+                   COUNT(*) FILTER (WHERE NOT is_active) AS inactive,
+                   COUNT(*) FILTER (WHERE is_admin) AS admins
+            FROM users
+            """
+        ).fetchone()
+
+
 @router.get("", response_model=UserPage)
 def list_users(
     search: str = Query(default="", max_length=100),

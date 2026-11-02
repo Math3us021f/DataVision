@@ -31,7 +31,23 @@ def summary(user: dict = Depends(get_current_user)) -> dict:
             (user["id"],),
         ).fetchall()
 
-        result = {"mine": mine, "recent_datasets": recent}
+        # Contagem de uploads por dia nos últimos 7 dias (inclui hoje), para o gráfico da home.
+        uploads_by_day = conn.execute(
+            """
+            SELECT gs.day::date AS day, COALESCE(c.count, 0) AS count
+            FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS gs(day)
+            LEFT JOIN (
+                SELECT created_at::date AS day, COUNT(*) AS count
+                FROM datasets
+                WHERE owner_user_id = %s AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+                GROUP BY created_at::date
+            ) c ON c.day = gs.day::date
+            ORDER BY gs.day
+            """,
+            (user["id"],),
+        ).fetchall()
+
+        result = {"mine": mine, "recent_datasets": recent, "uploads_by_day": uploads_by_day}
 
         # Só entra na resposta para admin: o usuário comum nunca recebe estes dados.
         if user["is_admin"]:
