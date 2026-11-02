@@ -2,6 +2,7 @@ import { ChartColumn, LayoutDashboard, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { ColumnCard } from "@/components/datasets/ColumnCard";
+import { SmartLink } from "@/components/SmartLink";
 import { buttonStyles } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -127,9 +128,9 @@ export function ProfileDrawer({
       footer={
         dataset && (
           <>
-            <a href={`/meus-datasets/${dataset.id}/dashboard`} className={buttonStyles({ variant: "secondary" })}>
+            <SmartLink href={`/app/datasets/${dataset.id}/dashboard`} className={buttonStyles({ variant: "secondary" })}>
               <LayoutDashboard className="size-4" /> Abrir dashboard
-            </a>
+            </SmartLink>
             <button type="button" id="profile-recalculate" onClick={calculate} disabled={calculating} className={buttonStyles({ variant: "primary" })}>
               {calculating ? <Loader2 className="size-4 animate-spin" /> : profile.kind === "empty" ? <ChartColumn className="size-4" /> : <RefreshCw className="size-4" />}
               {calculating ? "Calculando…" : profile.kind === "empty" ? "Calcular perfil" : "Recalcular"}

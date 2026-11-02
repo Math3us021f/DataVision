@@ -99,3 +99,41 @@ export interface SystemMetrics {
   cpu_percent: number;
   memory: { total_bytes: number; used_bytes: number; percent: number };
 }
+
+export type ChartType = "bar" | "line" | "pie" | "kpi";
+export type Agg = "sum" | "mean" | "count" | "min" | "max" | "count_distinct";
+export type TimeGrain = "day" | "month" | "year";
+export type FilterOp = "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "in" | "contains";
+export type Scalar = string | number | boolean;
+
+export interface FilterSpec {
+  column: string;
+  op: FilterOp;
+  value: Scalar | Scalar[];
+}
+
+export interface QuerySpec {
+  chart: ChartType;
+  dimension?: { column: string; time_grain: TimeGrain | null } | null;
+  metrics: { column: string; agg: Agg }[];
+  filters: FilterSpec[];
+  limit: number;
+}
+
+export interface QueryResult {
+  categories: string[];
+  series: { name: string; data: (number | null)[] }[];
+  total_rows_matched: number;
+  truncated: boolean;
+}
+
+export interface WidgetSuggestion {
+  title: string;
+  spec: QuerySpec;
+}
+
+export interface SavedDashboard {
+  widgets: QuerySpec[];
+  filters: FilterSpec[];
+  updated_at: string;
+}

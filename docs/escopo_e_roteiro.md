@@ -182,6 +182,16 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
   - 25 testes de backend e 13 Playwright novos. A página atual `/account` continua no ar até a aprovação.
   - Próximas etapas combinadas: preferências de exibição (tema, menu, itens por página, formatos) e preferências de dados (separador/decimal/codificação de CSV, ordem de data), esta última com testes de arquivos reais.
 
+- 2026-11-02: **Nova interface em React — 4ª tela: Dashboard do dataset (`/app/datasets/:id/dashboard`). APROVADA pelo usuário.**
+  - Porta toda a tela atual (`/meus-datasets/{id}/dashboard`) com visual novo, consumindo os mesmos endpoints (`profile`, `dashboard`, `suggested-dashboard`, `query`) — **sem mudança de backend**. Painel padrão gerado por regras; carrega o dashboard salvo se houver.
+  - Gráficos: cartão por widget com KPI grande ou gráfico ECharts (linha em área com gradiente, barras arredondadas, pizza em anel), tema claro/escuro acompanhando a troca. **Personalizar** por gráfico: seletor de tipo com ícones (barras, linha, pizza, indicador), eixo X, agrupamento de datas (dia/mês/ano, só em coluna de data), coluna da métrica e agregação (só as válidas para o tipo da coluna). **Filtros globais** (coluna, operador conforme o tipo, valor) valem para todos os gráficos; filtro incompleto é ignorado em vez de zerar o painel.
+  - Consulta com **debounce de 350 ms**; ao mudar a configuração, a requisição anterior é **cancelada** (nunca desenha resposta antiga). Estados: carregando (esqueleto), erro por gráfico (mensagem do servidor), "sem dados para este recorte", aviso quando as categorias foram cortadas.
+  - **Salvar / restaurar:** indicador "Painel padrão — ainda não salvo" / "Alterações não salvas" / "Salvo em …"; "Restaurar padrão" pede confirmação e apaga o salvo e os filtros; limite de 12 gráficos (mesmo do servidor). Dataset **não perfilado** oferece "Calcular perfil e continuar"; dataset inexistente ou de outro usuário mostra "Dataset não encontrado".
+  - Navegação: o botão "Dashboard" da lista e o "Abrir dashboard" do painel de perfil levam para cá **sem recarregar a página**, e o menu mantém "Datasets" destacado.
+  - Segurança: nome de coluna, categoria e título entram como texto (React) e nos gráficos como dados do ECharts; o tooltip usa `valueFormatter` (sem HTML). Testado com coluna e categoria `<img onerror>`: aparecem como texto, 0 `<img>`, nada executa.
+  - 13 testes Playwright novos (62 no total): painel padrão com números exatos e o que cada gráfico recebe da API, filtros (inclusive em lista e incompleto), agregação/tipo/coluna respeitando o tipo, agrupamento por mês, adicionar/remover com limite de 12, salvar → recarregar → restaurar, não perfilado, não encontrado, XSS, navegação interna e celular. Verificado por capturas (claro, escuro e celular).
+  - A página atual continua no ar até a aprovação.
+
 ## Próximo passo recomendado
 
 Etapa 12 em andamento: inventário feito; decidir os pontos abertos do relatório ([etapa12_validacao_mvp.md](etapa12_validacao_mvp.md), seção 6), confirmar a configuração efetiva do SSH (`sudo sshd -T`) e então refinar o plano de deploy (`compose.prod.yaml`, segredos novos, bucket novo no MinIO) para submetê-lo à aprovação.

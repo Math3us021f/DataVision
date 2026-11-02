@@ -60,7 +60,7 @@ function NavItem({ item, collapsed }: { item: Item; collapsed: boolean }) {
     return (
       <NavLink
         to={item.href}
-        end
+        end={item.href === "/"}
         title={item.label}
         className={({ isActive }) =>
           cn(base, collapsed && "lg:justify-center lg:px-0", isActive && "bg-accent-soft text-foreground [&_svg]:text-accent")

@@ -65,7 +65,7 @@ def test_lista_mostra_nome_tamanho_status_e_resumo(datasets_page):
     expect(row(page, "vendas.csv").get_by_text("Perfilado", exact=True)).to_be_visible()
     expect(row(page, "pendente.csv").get_by_text("Pendente", exact=True)).to_be_visible()
     expect(row(page, "vendas.csv")).to_contain_text(f"{len(CSV)} B")
-    expect(row(page, "vendas.csv").get_by_role("link", name="Dashboard")).to_have_attribute("href", re.compile(r"/meus-datasets/\d+/dashboard$"))
+    expect(row(page, "vendas.csv").get_by_role("link", name="Dashboard")).to_have_attribute("href", re.compile(r"/app/datasets/\d+/dashboard$"))
 
     expect(page.locator("#summary-total")).to_have_text("2")
     expect(page.locator("#summary-profiled")).to_have_text("1")

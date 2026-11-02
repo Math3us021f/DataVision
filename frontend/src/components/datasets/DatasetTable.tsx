@@ -1,6 +1,7 @@
 import { ChartColumn, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, LayoutDashboard, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { SmartLink } from "@/components/SmartLink";
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardHeader, CardSubtitle, CardTitle } from "@/components/ui/card";
@@ -106,12 +107,9 @@ export function DatasetTable({
                       <button type="button" onClick={() => onProfile(d)} className={buttonStyles({ variant: "secondary", size: "sm" })}>
                         <ChartColumn className="size-3.5" /> Perfil
                       </button>
-                      <a
-                        href={`/meus-datasets/${d.id}/dashboard`}
-                        className={buttonStyles({ variant: "secondary", size: "sm" })}
-                      >
+                      <SmartLink href={`/app/datasets/${d.id}/dashboard`} className={buttonStyles({ variant: "secondary", size: "sm" })}>
                         <LayoutDashboard className="size-3.5" /> Dashboard
-                      </a>
+                      </SmartLink>
                       <button
                         type="button"
                         onClick={() => onDelete(d)}
