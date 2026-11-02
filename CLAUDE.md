@@ -25,7 +25,7 @@ O desenvolvimento será feito inicialmente no Windows, utilizando Docker para ex
 
 **Produção futura:**
 
-- Ubuntu Server 24.04.
+- Ubuntu Server 26.04 LTS (confirmado no inventário de 2026-11-02; é uma VM VirtualBox, com rede host-only + NAT).
 - Python 3.13 dentro do ambiente de execução da aplicação.
 - Docker já instalado no servidor.
 - MinIO já instalado; sua configuração atual deverá ser inspecionada antes de qualquer alteração.
@@ -49,7 +49,7 @@ Antes de iniciar uma tarefa:
 3. Consulte o `README.md` para entender a estrutura e os comandos existentes.
 4. Inspecione o código, os arquivos de configuração e o estado atual do projeto antes de propor mudanças.
 
-Os documentos de instalação do ambiente Ubuntu estão na pasta `D:\VMs\Code\docs`. Consulte-os quando forem relevantes para compreender a infraestrutura existente.
+Os documentos de instalação do ambiente Ubuntu estão em `docs/` deste projeto (`1-Instalação e Configuração inicial.md` e `2-Instalação Python_Docker_MinIO.md`). Eles ficam no `.gitignore` porque contêm credenciais em texto puro: nunca os commite nem reproduza seus valores. O inventário real do servidor e o plano de deploy estão em `docs/etapa12_validacao_mvp.md`.
 
 Não presuma que os serviços descritos na documentação continuam exatamente no mesmo estado. Confirme informações importantes antes de planejar o deploy.
 
