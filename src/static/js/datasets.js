@@ -134,13 +134,17 @@ function renderDatasets(datasets) {
         profileButton.type = "button";
         profileButton.addEventListener("click", () => openProfile(dataset));
 
+        // Só abre a tela; se o dataset ainda não foi perfilado, ela mesma explica o que fazer.
+        const dashboardLink = el("a", "button button--small button--secondary", "Dashboard");
+        dashboardLink.href = `/meus-datasets/${dataset.id}/dashboard`;
+
         const deleteButton = el("button", "icon-button icon-button--danger");
         deleteButton.type = "button";
         deleteButton.setAttribute("aria-label", `Excluir ${dataset.original_name}`);
         deleteButton.append(document.getElementById("icon-trash")?.content.cloneNode(true) ?? document.createTextNode("Excluir"));
         deleteButton.addEventListener("click", () => deleteDataset(dataset));
 
-        group.append(profileButton, deleteButton);
+        group.append(profileButton, dashboardLink, deleteButton);
         actions.append(group);
         row.append(actions);
         tableBody.append(row);

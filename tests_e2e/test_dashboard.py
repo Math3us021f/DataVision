@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from playwright.sync_api import expect
 
@@ -111,6 +113,15 @@ def test_restaurar_padrao_descarta_o_salvo(dashboard_page):
     page.reload()
     expect(page.locator(".kpi-value")).to_have_text("750")
     expect(page.locator("#save-status")).to_have_text("Painel padrão — ainda não salvo")
+
+
+def test_lista_de_datasets_tem_link_para_o_dashboard(dashboard_page):
+    page = dashboard_page
+    page.goto("/meus-datasets")
+    page.get_by_role("link", name="Dashboard").first.click()
+
+    expect(page).to_have_url(re.compile(r"/meus-datasets/\d+/dashboard$"))
+    expect(page.locator(".kpi-value")).to_have_text("750")
 
 
 def test_personalizar_agregacao_do_kpi(dashboard_page):
