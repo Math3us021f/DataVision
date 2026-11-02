@@ -195,6 +195,16 @@ curl -s -b cookies.txt -X POST http://localhost:8000/datasets/1/query \
 - Dataset sem perfil → `409`. Coluna inexistente ou agregação incompatível (ex: `sum` em texto) → `422` com a explicação. Chave desconhecida no JSON → `422`. Dataset de outro usuário → `404`. Sem login → `401`.
 - Colunas de data só são reconhecidas em datasets **perfilados depois** desta mudança — reperfile datasets antigos. Formato `dd/mm/aaaa` é lido com dia primeiro; `aaaa-mm-dd` é lido como ISO.
 
+## Painel padrão sugerido (dono do dataset)
+
+```bash
+curl -s -b cookies.txt http://localhost:8000/datasets/1/suggested-dashboard
+```
+
+- Esperado (CSV com data/cidade/valor): lista de widgets `{"title", "spec"}` — aqui, `Soma de valor` (kpi), `Soma de valor por dia` (line) e `Soma de valor por cidade` (pie). Cada `spec` pode ser enviado como está para `POST /datasets/{id}/query`.
+- Regras (determinísticas, sobre o perfil salvo): até 3 KPIs de soma das colunas numéricas (ignora identificadores: nome com `id`/`cod`/`codigo`, ou inteiro único sem nulos em tabelas com 20+ linhas); 1 gráfico de linha pela primeira coluna de data (por dia se há até 31 datas distintas, senão por mês); até 3 gráficos por coluna de texto com 2–50 valores distintos (pizza até 5, barras acima). Sem coluna numérica, usa contagem.
+- Dataset sem perfil → `409`. Dataset de outro usuário → `404`. Sem login → `401`.
+
 ## Auditoria (só admin)
 
 ```bash

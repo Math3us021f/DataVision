@@ -2,13 +2,25 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.core.auth import get_current_user
 from src.core.db import get_connection
-from src.schemas.analytics import QueryResult, QuerySpec
+from src.schemas.analytics import QueryResult, QuerySpec, WidgetSuggestion
 from src.services.analytics.engine import run_query
+from src.services.analytics.suggestions import suggest_dashboard
 from src.services.analytics.validator import InvalidQueryError
-from src.services.datasets import get_column_types, get_owned_dataset
+from src.services.datasets import get_column_types, get_owned_dataset, get_stored_profile
 from src.services.profiling import load_dataframe
 
 router = APIRouter(prefix="/datasets", tags=["analytics"])
+
+
+@router.get("/{dataset_id}/suggested-dashboard", response_model=list[WidgetSuggestion])
+def suggested_dashboard(dataset_id: int, user: dict = Depends(get_current_user)) -> list[WidgetSuggestion]:
+    """Painel inicial por regras sobre o perfil salvo. Devolve só as specs: cada widget busca seus dados em /query."""
+    with get_connection() as conn:
+        get_owned_dataset(conn, dataset_id, user["id"])
+        if get_column_types(conn, dataset_id) is None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Perfile o dataset antes de gerar o painel")
+        profile = get_stored_profile(conn, dataset_id)
+    return suggest_dashboard(profile)
 
 
 @router.post("/{dataset_id}/query", response_model=QueryResult)

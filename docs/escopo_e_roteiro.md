@@ -142,7 +142,8 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
   - `POST /datasets/{id}/query` (dono do dataset): contrato fechado em Pydantic (`src/schemas/analytics.py`, `extra="forbid"`, limites de tamanho), validação contra o perfil (`validator.py`) e execução (`engine.py`) com agregações/operadores de lista fixa — sem `eval`/`df.query`, `contains` com `regex=False`. Resposta já em `categories`/`series`, pronta para o ECharts.
   - Não usa SQLAlchemy: o projeto usa `psycopg` com SQL puro; a tabela `dashboards` (spec em JSONB, `ON DELETE CASCADE`) ainda **não** foi criada.
   - 26 testes novos (165 no total): números exatos, filtros, agrupamento mensal, truncamento, 6 specs inválidas, chave desconhecida, dataset de outro usuário (404), sem perfil (409), anônimo (401).
-  - Pendente: tabela/CRUD `dashboards`, geração automática do dashboard padrão (regras sobre o perfil), tela com ECharts (vendorizado em `static/vendor`), limite de tempo de consulta, cache do DataFrame se ficar lento.
+  - **Painel padrão (mesma data):** `GET /datasets/{id}/suggested-dashboard` devolve widgets `{title, spec}` gerados por `services/analytics/suggestions.py`, função pura sobre o perfil salvo (sem IA, sem tocar nos dados). Regras: KPIs de soma (máx. 3, ignorando identificadores), linha pela 1ª coluna de data (dia se ≤31 datas distintas, senão mês), pizza/barras por colunas de texto com 2–50 valores distintos (máx. 3), contagem quando não há medida. Heurísticas simples e conhecidas: o corte de 31 datas aproxima o período pois o perfil não guarda mín./máx. de datas. 10 testes novos (175 no total), incluindo executar no engine cada spec sugerida para um upload real.
+  - Pendente: tabela/CRUD `dashboards`, tela com ECharts (vendorizado em `static/vendor`), limite de tempo de consulta, cache do DataFrame se ficar lento.
 
 ## Próximo passo recomendado
 

@@ -48,6 +48,11 @@ class QuerySpec(_Strict):
         return self
 
 
+class WidgetSuggestion(BaseModel):
+    title: str
+    spec: QuerySpec
+
+
 class QueryResult(BaseModel):
     categories: list[str]
     series: list["SeriesOut"]
