@@ -32,7 +32,7 @@
 | 3 | Casca do React (`/login`, `/app/...`), `/static/app/`, CSP e cabeçalhos de segurança | **feito** |
 | 4 | Modelos e migrações das demais tabelas (datasets, perfil, colunas, dashboards, auditoria, acessos, códigos de e-mail, notificações) | **feito** |
 | 5 | Login, logout, `/me`, sessão com inatividade, limite de tentativas, dois passos por e-mail | **feito** |
-| 6 | Usuários, auditoria, conta (perfil, senha, e-mail, sessões) e notificações | a fazer |
+| 6 | Usuários, auditoria, conta (perfil, senha, e-mail, sessões) e notificações | **feito** |
 | 7 | Datasets: upload, MinIO, perfilamento, amostra | a fazer |
 | 8 | Consultas, dashboards salvos e painel padrão (o motor de análise é reaproveitado) | a fazer |
 | 9 | Métricas, logs, explorador de arquivos, resumo do painel | a fazer |
@@ -78,6 +78,23 @@ Rotas: `GET /login` (a tela), `POST /login`, `POST /login/verify`, `POST /login/
 6. As respostas JSON usam UTF-8 puro (`config/renderers.py`), como o FastAPI.
 
 **Fora desta etapa (propositalmente):** criar o administrador inicial a partir de `ADMIN_USERNAME`/`ADMIN_PASSWORD` (comando de gestão, etapa 6), as rotas protegidas de dados (etapas 6 a 9) e o envio do token CSRF pelo React (etapa 10).
+
+## Usuários, auditoria, conta e notificações (etapa 6)
+
+**Rotas migradas (15 novas; 24 das 49 do contrato no total):** `POST/GET /users`, `GET /users/summary`, `PATCH /users/{id}`, `DELETE /users/{id}?force`, `PUT /users/{id}/password`, `PATCH /users/{id}/email` · `GET /audit-logs`, `GET /audit-logs/actions` · `GET/PUT /me/profile`, `GET /me/logins`, `POST /me/sessions/revoke-others`, `PUT /me/password`, `POST /me/email/request`, `POST /me/email/confirm` · `GET /me/notifications`, `POST /me/notifications/read`.
+
+**Organização:** regras de negócio em serviços (`accounts/services.py`, `accounts/account.py`, `accounts/notifications.py`, `audit/services.py`, `datasets/services.py`) e a camada HTTP em roteadores finos (`accounts/users_api.py`, `accounts/account_api.py`, `audit/api.py`). Cada alteração roda numa transação (`transaction.atomic()`); se algo falha no meio, nada fica pela metade. O administrador inicial é criado pelo comando `python manage.py ensure_admin` (só se não houver usuários), executado pelo Compose ao subir, depois de `migrate`.
+
+**Aprendizados:**
+1. `Query[Schema]` com `Field(ge=1, le=100)` reproduz a validação dos parâmetros (422 com a lista de erros, como no FastAPI).
+2. `username__icontains` escapa `%` e `_` sozinho: a busca é literal, sem o código manual de escape que existia.
+3. Rotas com `{int:user_id}` só casam com números (`/users/abc` dá 404) e `summary` não é confundido com um id.
+4. O `Status(204, None)` substitui o retorno em tupla (obsoleto no Ninja).
+5. **Armadilha de teste:** `force_login` não grava `start`, `act` e `v` da nossa política de sessão; a sessão é "inicializada" na primeira chamada. O auxiliar `logged_client` grava as anotações como o login de verdade, senão testes de "derrubar a sessão" dão falso negativo.
+6. A exclusão forçada apaga os arquivos no MinIO **dentro** da transação do banco: se algo falhar depois, o arquivo já se foi (igual ao FastAPI). Falha do MinIO não trava a exclusão (fica um objeto órfão, com aviso no log).
+7. Mudar a senha ou encerrar as outras sessões grava a `session_version` nova **na sessão atual** (`request.session["v"]`), que continua válida; as demais caem.
+
+**Ferramenta de contrato:** `docker compose exec -T django python manage.py shell < backend/scripts/contract_diff.py` compara a API do Django com o contrato congelado (rotas migradas, rotas que faltam, rotas sobrando e campos das respostas). No fim da etapa 6: 24 de 49 migradas, nenhuma sobrando; as duas "diferenças" (`/me`, `/users/summary`) são melhorias (o FastAPI não declarava o formato dessas respostas). Faltam os datasets, a consulta e o painel (etapas 7 e 8), métricas, logs, arquivos e o resumo (etapa 9) e os redirecionamentos das páginas antigas (etapa 10).
 
 ## Comportamentos a reproduzir (paridade)
 

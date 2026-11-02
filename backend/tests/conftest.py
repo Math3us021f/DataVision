@@ -76,3 +76,68 @@ def fast_password_hasher(settings):
         "django.contrib.auth.hashers.MD5PasswordHasher",
         "django.contrib.auth.hashers.PBKDF2PasswordHasher",
     ]
+
+
+# ---------- usuários e clientes prontos ----------
+
+
+@pytest.fixture(autouse=True)
+def capture_account_emails(request, monkeypatch):
+    """Os e-mails de troca de endereço (Minha conta) também vão para a caixa falsa, quando o teste a usa."""
+    if "outbox" in request.fixturenames:
+        from accounts import account
+
+        sent = request.getfixturevalue("outbox")
+        monkeypatch.setattr(account, "send_email", lambda to, subject, body: sent.append((to, subject, body)))
+
+
+def make_user(username, password=PASSWORD, **fields):
+    from django.contrib.auth import get_user_model
+
+    return get_user_model().objects.create_user(username, password, **fields)
+
+
+def logged_client(user):
+    """Cliente já logado. `force_login` não grava as anotações da nossa política de sessão (start, act, v), então elas
+    são gravadas aqui, como o login de verdade faz; sem isso a sessão seria "inicializada" só na primeira chamada."""
+    cliente = ApiClient()
+    cliente.force_login(user)
+    sessao = cliente.session
+    agora = session_policy._now()
+    sessao["start"], sessao["act"], sessao["v"] = agora, agora, user.session_version
+    sessao.save()
+    return cliente
+
+
+@pytest.fixture
+def admin(db):
+    return make_user("chefe", is_admin=True)
+
+
+@pytest.fixture
+def admin_client(admin):
+    return logged_client(admin)
+
+
+@pytest.fixture
+def common(db):
+    return make_user("comum")
+
+
+@pytest.fixture
+def common_client(common):
+    return logged_client(common)
+
+
+@pytest.fixture
+def fake_minio(monkeypatch):
+    """MinIO de mentira: guarda o que foi pedido para remover."""
+    removed = []
+
+    class FakeMinio:
+        def remove_object(self, bucket, key):
+            removed.append((bucket, key))
+
+    monkeypatch.setenv("MINIO_BUCKET", "bucket-de-teste")
+    monkeypatch.setattr("core.storage.get_minio_client", lambda: FakeMinio())
+    return removed
