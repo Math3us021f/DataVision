@@ -25,7 +25,6 @@ docs/2-Instalação Python_Docker_MinIO.md
 # Frontend React: dependências e resultado do build (gerado, não versionado)
 frontend/node_modules/
 frontend/dist/
-src/static/app/
 
 # Backend Django: pasta onde o Compose monta o build do React e arquivos coletados
 backend/static_src/

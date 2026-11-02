@@ -1,4 +1,11 @@
-// Mensagens do servidor para sessão encerrada por tempo (ver src/core/auth.py).
+/** Token CSRF: o Django entrega o cookie `csrftoken` nas páginas e exige o mesmo valor no cabeçalho `X-CSRFToken` em
+ * toda requisição que altera dados. Lido a cada envio, porque o Django troca o token quando a pessoa entra. */
+export function csrfToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+// Mensagens do servidor para sessão encerrada por tempo (ver backend/accounts/session_policy.py).
 const IDLE_DETAIL = "Sessão encerrada por inatividade";
 const EXPIRED_DETAIL = "Sessão expirada";
 
@@ -20,7 +27,7 @@ export async function api<T>(path: string, init: RequestInit = {}, signal?: Abor
     ...init,
     signal,
     credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...init.headers },
+    headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken(), ...init.headers },
   });
 
   let body: unknown = null;

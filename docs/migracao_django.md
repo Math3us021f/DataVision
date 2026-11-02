@@ -36,7 +36,7 @@
 | 7 | Datasets: upload, MinIO, perfilamento, amostra | **feito** |
 | 8 | Consultas, dashboards salvos e painel padrão (o motor de análise é reaproveitado) | **feito** |
 | 9 | Métricas, logs, explorador de arquivos, resumo do painel | **feito** |
-| 10 | Troca: React com CSRF, suíte Playwright inteira contra o Django, Django na porta 8000, remoção do FastAPI, Dockerfile e `compose.prod.yaml` | a fazer |
+| 10 | Troca: React com CSRF, suíte Playwright inteira contra o Django, Django como `app` na porta 8000, remoção do FastAPI, Dockerfile e compose de produção | **feito** |
 
 ## Modelos (etapa 4)
 
@@ -118,6 +118,29 @@ Rotas: `GET /login` (a tela), `POST /login`, `POST /login/verify`, `POST /login/
 **Consulta (`analytics/api.py`):** o Django não tem `anyio.fail_after`; a consulta roda num `ThreadPoolExecutor` próprio e a resposta espera `future.result(timeout=15)`. A vaga real continua sendo o semáforo de `run_limited` (no máximo 3 simultâneas): quem não consegue vaga em 5 s recebe **503**; quem estoura o prazo recebe **504** e a thread abandonada segue segurando a vaga até acabar. As threads do `ThreadPoolExecutor` não tocam no banco (o dataset e os tipos são lidos antes).
 
 **Estratégia de testes — o aprendizado mais importante:** em vez de reescrever os testes de HTTP do FastAPI, o adaptador `backend/tests/compat.py` (um `TestClient` com a mesma interface, em cima do cliente de teste do Django) os faz rodar **contra o Django, quase sem mudança** (`backend/tests/contract/`). São 85 testes de comportamento (motor de análise com números conferidos à mão, painel sugerido, dashboards salvos, resumo, arquivos, métricas, limites 503/504 e cache) que passaram de primeira ou com ajustes mínimos: é a prova de paridade. Foram deixados de fora os testes que dependem de detalhes internos do FastAPI (`src.core.db`, `src.main`...): o que eles cobriam já tem testes nativos do Django (login, sessão, dois passos, usuários, auditoria, conta, datasets).
+
+## A troca (etapa 10) — migração concluída
+
+**O que mudou:** o Django é agora o serviço `app` (porta 8000); o FastAPI e seus 200+ testes foram removidos do repositório (`src/`, `tests/`, `requirements.txt`, `constraints.txt`; o histórico do Git os preserva). Estrutura: `backend/` (Django), `frontend/`, `tests_e2e/`. Os testes de interface ficaram **quase iguais**: 100 testes Playwright passam contra o Django.
+
+| Item | Como ficou |
+|---|---|
+| Páginas antigas | `/`, `/meus-datasets`, `/meus-datasets/{id}/dashboard`, `/account`, `/admin`, `/admin/{página}` redirecionam (admin → `/app/admin/...`; comum → `/app`; anônimo → `/login`; página inexistente → 404); testes em `backend/tests/test_pages.py` |
+| CSRF no React | `lib/api.ts` lê o cookie `csrftoken` a cada envio e manda `X-CSRFToken`; o upload (XHR) também. As chamadas diretas dos testes Playwright (`page.request`) passam por um adaptador em `tests_e2e/conftest.py` que faz o mesmo |
+| Interface gerada | o build do React vai para `backend/static_src/app` (não versionado); o WhiteNoise o serve em `/static/app/` |
+| Imagem | `Dockerfile` com 3 estágios: `frontend-build` (Node), `backend` (alvo do desenvolvimento, que monta o código) e `production` (completa: interface gerada, `collectstatic`, gunicorn com 1 processo e 8 threads, usuário `app`) |
+| Bancos | só o Django: `datavision_dj` em desenvolvimento (e `datavision_dj_test`, criados por `db-init/` quando `DEV_DATABASES=true`); em produção, `POSTGRES_DB` |
+| Produção | `compose.prod.yaml` adaptado (`target: production`, `DJANGO_DATABASE_URL`, `ALLOWED_HOSTS` obrigatório) e **ensaiado** numa pilha isolada |
+
+**Aprendizados da troca:**
+1. **O ensaio de produção achou um erro que nenhum teste achava:** o `collectstatic` rodava como root no build e, ao carregar as configurações, criava `/app/logs/app.log` como root dentro da imagem; o volume de logs herdava esse arquivo e o processo sem privilégios não conseguia gravá-lo (o contêiner reiniciava em ciclo). Solução: o build usa `LOG_DIR` fora de `/app/logs`.
+2. O gunicorn 26 tenta criar um socket de controle em `~/.gunicorn`, que é somente leitura na produção: `--control-socket /tmp/gunicorn.ctl` (tmpfs).
+3. **Condição de corrida latente na interface**, revelada porque o Django responde mais rápido: o evento `close` do `<dialog>` chega de forma assíncrona e, ao fechar por código, podia apagar a *segunda* confirmação da exclusão forçada (já aberta). O diálogo agora ignora o `close` causado pelo próprio código.
+4. O Django envia `Cross-Origin-Opener-Policy` por padrão, mas o navegador a ignora (com erro no console) fora de HTTPS/localhost; ela só é enviada quando `SESSION_COOKIE_SECURE=true`.
+5. `ALLOWED_HOSTS` precisa conter o nome pelo qual a aplicação é acessada (`app` na rede do Compose, o IP da VM em produção); o padrão do desenvolvimento já inclui `app`.
+6. O Playwright (`wait_for_function`) e a CSP não combinam (eval proibido): os testes usam `expect`.
+
+**Pendências conhecidas:** testar o envio de e-mail real e o MinIO do servidor (ver etapa 12); `CLAUDE.md` (arquivo de regras do usuário) ainda descreve a arquitetura como FastAPI/SQLite e precisa de um ajuste pontual com o OK do usuário; `backend/scripts/contract_diff.py` e `docs/contrato_api_fastapi.json` ficam como registro histórico do contrato original.
 
 ## Comportamentos a reproduzir (paridade)
 

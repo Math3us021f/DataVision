@@ -13,7 +13,7 @@ PRODUCTION = APP_ENV == "production"
 DEBUG = not PRODUCTION  # DEBUG mostra detalhes de erro: só fora de produção
 
 SECRET_KEY = os.environ["SECRET_KEY"]
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,django,testserver").split(",") if h.strip()]
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,app,django,testserver").split(",") if h.strip()]
 
 # ---------- aplicações ----------
 
@@ -99,6 +99,9 @@ CSRF_COOKIE_HTTPONLY = False
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
+# O Django envia Cross-Origin-Opener-Policy por padrão, mas os navegadores a ignoram (com erro no console) fora de HTTPS
+# ou localhost. Só vale ligar quando o acesso é por HTTPS (SESSION_COOKIE_SECURE=true).
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin" if SESSION_COOKIE_SECURE else None
 X_FRAME_OPTIONS = "DENY"
 
 # ---------- arquivos estáticos (a interface React gerada) ----------

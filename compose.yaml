@@ -1,19 +1,22 @@
 services:
+  # A aplicação: backend Django (API e casca da interface React). Em desenvolvimento o código é montado de ./backend
+  # e o servidor recarrega sozinho; a produção usa o compose.prod.yaml (imagem completa, sem montar código).
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: backend
     ports:
       - "127.0.0.1:8000:8000"
-    volumes:
-      - ./src:/app/src
-      - ./tests:/app/tests
-      - ./logs:/app/logs
-      - ./data:/app/data
     init: true
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data  # explorador de arquivos
+      - ./docs:/docs:ro  # contrato congelado do FastAPI (backend/scripts/contract_diff.py)
     environment:
-      DATABASE_URL: postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}
       SECRET_KEY: ${SECRET_KEY}
+      DJANGO_DATABASE_URL: postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${DJANGO_DB_NAME:-datavision_dj}
+      LOG_DIR: /app/logs
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       MINIO_ENDPOINT: minio:9000
@@ -23,7 +26,7 @@ services:
       # E-mail: se o .env tiver SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASSWORD/SMTP_FROM, os e-mails vão de
       # verdade por esse provedor; senão vão para o Mailpit (coletor local, nada sai da máquina).
       # MAIL_SINK_*: endereços de mentira (exemplo.com etc., usados pelos testes) vão SEMPRE para o Mailpit,
-      # mesmo com o provedor real configurado. Ver src/core/mailer.py.
+      # mesmo com o provedor real configurado. Ver backend/core/mailer.py.
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_SECURITY: ${SMTP_SECURITY:-}
@@ -39,11 +42,9 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
-    command: >
-      python -m uvicorn src.main:app
-      --host 0.0.0.0
-      --port 8000
-      --reload
+    # Ao subir: aplica as migrações pendentes, garante o administrador inicial e o bucket do MinIO, e inicia o
+    # servidor de desenvolvimento.
+    command: sh -c "python manage.py migrate --noinput && python manage.py ensure_admin && python manage.py ensure_bucket && python manage.py runserver 0.0.0.0:8000"
 
   db:
     image: postgres:18
@@ -55,6 +56,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       APP_DB_USER: ${APP_DB_USER}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      DEV_DATABASES: "true"  # cria os bancos de desenvolvimento e de teste (db-init); a produção não define
     volumes:
       - db_data:/var/lib/postgresql
       - ./db-init:/docker-entrypoint-initdb.d:ro
@@ -81,48 +83,6 @@ services:
       timeout: 5s
       retries: 10
 
-  # Backend Django em construção (migração do FastAPI). Convive com o `app` atual: porta 8001, banco próprio
-  # (datavision_dj). Quando a migração terminar, ele assume a porta 8000 e o `app` sai.
-  django:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "127.0.0.1:8001:8000"
-    init: true
-    volumes:
-      - ./backend:/app
-      - ./src/static/app:/app/static_src/app:ro  # interface React gerada (serviço frontend)
-      - ./data:/app/data  # explorador de arquivos
-      - ./docs:/docs:ro  # contrato congelado do FastAPI (backend/scripts/contract_diff.py)
-    environment:
-      SECRET_KEY: ${SECRET_KEY}
-      DJANGO_DATABASE_URL: postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${DJANGO_DB_NAME:-datavision_dj}
-      LOG_DIR: /app/logs
-      # E-mail: mesma regra do serviço app (provedor real se SMTP_* estiver no .env; senão Mailpit; e
-      # endereços de mentira sempre ao Mailpit). Ver core/mailer.py.
-      SMTP_HOST: ${SMTP_HOST:-mailpit}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_SECURITY: ${SMTP_SECURITY:-}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM: ${SMTP_FROM:-datavision@localhost}
-      MAIL_SINK_HOST: mailpit
-      MAIL_SINK_PORT: "1025"
-      ADMIN_USERNAME: ${ADMIN_USERNAME}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_BUCKET: ${MINIO_BUCKET}
-    depends_on:
-      db:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    # Ao subir: aplica as migrações pendentes, garante o administrador inicial e o bucket do MinIO, e inicia o servidor de desenvolvimento.
-    command: sh -c "python manage.py migrate --noinput && python manage.py ensure_admin && python manage.py ensure_bucket && python manage.py runserver 0.0.0.0:8000"
-
   # Coletor de e-mail para desenvolvimento e testes: recebe tudo e mostra numa tela. Nada é entregue de verdade.
   # SMTP na porta 1025 (só na rede interna do Compose); tela em http://localhost:8025 (só nesta máquina).
   mailpit:
@@ -146,6 +106,7 @@ services:
     depends_on:
       - app
 
+  # Gera a interface React em backend/static_src/app (o Django a entrega em /static/app/).
   frontend:
     build:
       context: .
@@ -156,7 +117,7 @@ services:
     volumes:
       - ./frontend:/frontend
       - frontend_node_modules:/frontend/node_modules
-      - ./src/static/app:/out
+      - ./backend/static_src/app:/out
 
 volumes:
   frontend_node_modules:

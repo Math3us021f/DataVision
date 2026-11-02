@@ -15,4 +15,6 @@ logs/
 data/
 frontend/node_modules
 frontend/dist
-src/static/app
+backend/static_src
+backend/staticfiles
+backend/logs

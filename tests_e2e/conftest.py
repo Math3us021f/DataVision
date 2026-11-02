@@ -9,6 +9,40 @@ import os
 import uuid
 
 import pytest
+from playwright.sync_api import APIRequestContext
+
+# O Django exige o token CSRF (cookie csrftoken → cabeçalho X-CSRFToken) em toda requisição que altera dados. O
+# navegador de verdade o envia pelo código do React; as chamadas diretas dos testes (page.request, context.request)
+# passam por este adaptador, que faz o mesmo: lê o cookie e o devolve no cabeçalho.
+
+
+def _csrf_token(request_context: APIRequestContext) -> str | None:
+    for cookie in request_context.storage_state()["cookies"]:
+        if cookie["name"] == "csrftoken":
+            return cookie["value"]
+    return None
+
+
+def _with_csrf(method_name: str) -> None:
+    original = getattr(APIRequestContext, method_name)
+
+    def wrapper(self, url, **kwargs):
+        headers = dict(kwargs.get("headers") or {})
+        if not any(name.lower() == "x-csrftoken" for name in headers):
+            token = _csrf_token(self)
+            if token is None:
+                self.get("/login")  # a tela de entrada entrega o cookie csrftoken
+                token = _csrf_token(self)
+            if token:
+                headers["X-CSRFToken"] = token
+        kwargs["headers"] = headers
+        return original(self, url, **kwargs)
+
+    setattr(APIRequestContext, method_name, wrapper)
+
+
+for _method in ("post", "put", "patch", "delete"):
+    _with_csrf(_method)
 
 
 @pytest.fixture(scope="session")

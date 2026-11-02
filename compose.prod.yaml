@@ -23,6 +23,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: production  # imagem completa: Django + interface gerada + estáticos coletados
     # Tag explícita por versão: voltar atrás = subir a tag anterior (APP_VERSION=anterior).
     image: "datavision-app:${APP_VERSION:?defina APP_VERSION (ex 2026-11-02)}"
     restart: unless-stopped
@@ -47,7 +48,10 @@ services:
     environment:
       APP_ENV: production
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}  # true quando houver HTTPS
-      DATABASE_URL: postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}
+      DJANGO_DATABASE_URL: postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}
+      LOG_DIR: /app/logs
+      # Endereços pelos quais a aplicação é acessada (o Django recusa os demais): IP da VM, nome, localhost.
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?defina ALLOWED_HOSTS, ex. localhost,127.0.0.1,192.168.56.10}
       SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY}
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}

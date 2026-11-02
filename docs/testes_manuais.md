@@ -6,7 +6,19 @@
 >
 > Credenciais do admin: estão no seu `.env` local (`ADMIN_USERNAME` / `ADMIN_PASSWORD`). Não estão reproduzidas aqui de propósito.
 >
-> **Nota:** o `pytest` roda contra o mesmo banco de desenvolvimento (não há banco de testes separado ainda), então rodar a suíte repetidamente vai deixando usuários de teste (`user_xxxxxxxx`) acumulados na tabela `users`. Isso é inofensivo, mas se quiser limpar: `docker compose exec db psql -U datavision_app -d datavision -c "DELETE FROM users WHERE username LIKE 'user_%';"` (cuidado: isso é uma exclusão real, confirme antes de rodar).
+> **Token CSRF (backend Django):** toda requisição que **altera dados** (`POST`, `PUT`, `PATCH`, `DELETE`, inclusive o próprio login) precisa do cabeçalho `X-CSRFToken` com o valor do cookie `csrftoken`; sem ele a resposta é `403 {"detail": "CSRF check Failed"}`. Leituras (`GET`) não precisam. Para obter o token, abra a tela de login uma vez (ela entrega o cookie) e releia o valor do arquivo de cookies sempre que entrar (o Django o troca no login):
+>
+> ```bash
+> curl -s -c cookies.txt -o /dev/null http://localhost:8000/login
+> TOKEN=$(grep csrftoken cookies.txt | awk '{print $7}')
+> curl -s -b cookies.txt -c cookies.txt -H "Content-Type: application/json" -H "X-CSRFToken: $TOKEN" \
+>   -d '{"username":"admin","password":"SUA_SENHA_AQUI"}' http://localhost:8000/login
+> TOKEN=$(grep csrftoken cookies.txt | awk '{print $7}')   # o token mudou com o login
+> ```
+>
+> Nos exemplos abaixo, acrescente `-H "X-CSRFToken: $TOKEN"` (e `-c cookies.txt` para manter o cookie atualizado) a todo comando que altera dados. Fluxo conferido contra o servidor real (login, criar usuário, upload, perfil, consulta, exclusão e logout; sem o token: 403).
+>
+> **Banco dos testes:** o `pytest` usa um banco próprio (`datavision_dj_test`), então não deixa dados de teste no banco de desenvolvimento.
 
 ## Health check
 

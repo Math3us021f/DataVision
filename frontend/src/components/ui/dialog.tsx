@@ -6,23 +6,37 @@ import { cn } from "@/lib/utils";
 /** <dialog> nativo: o navegador cuida do foco preso, da tecla Esc e do fundo escurecido. */
 function useNativeDialog(open: boolean, onClose: () => void, dismissible = true) {
   const ref = useRef<HTMLDialogElement>(null);
+  // O navegador dispara o evento `close` de forma assíncrona, também quando fechamos por código. Sem este marcador, o
+  // evento de um diálogo que acabou de fechar podia chegar depois de outro já ter aberto no lugar (ex.: a segunda
+  // confirmação da exclusão forçada) e apagar o novo. Só o fechamento feito pela pessoa (Esc) chama `onClose`.
+  const closedByCode = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
+    if (!open && el.open) {
+      closedByCode.current = true;
+      el.close();
+    }
   }, [open]);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.addEventListener("close", onClose);
+    const handleClose = () => {
+      if (closedByCode.current) {
+        closedByCode.current = false;
+        return;
+      }
+      onClose();
+    };
+    el.addEventListener("close", handleClose);
     // Janela que exige uma resposta explícita: a tecla Esc não a fecha.
     const keepOpen = (e: Event) => !dismissible && e.preventDefault();
     el.addEventListener("cancel", keepOpen);
     return () => {
-      el.removeEventListener("close", onClose);
+      el.removeEventListener("close", handleClose);
       el.removeEventListener("cancel", keepOpen);
     };
   }, [onClose, dismissible]);
