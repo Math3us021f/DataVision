@@ -33,7 +33,7 @@
 | 4 | Modelos e migrações das demais tabelas (datasets, perfil, colunas, dashboards, auditoria, acessos, códigos de e-mail, notificações) | **feito** |
 | 5 | Login, logout, `/me`, sessão com inatividade, limite de tentativas, dois passos por e-mail | **feito** |
 | 6 | Usuários, auditoria, conta (perfil, senha, e-mail, sessões) e notificações | **feito** |
-| 7 | Datasets: upload, MinIO, perfilamento, amostra | a fazer |
+| 7 | Datasets: upload, MinIO, perfilamento, amostra | **feito** |
 | 8 | Consultas, dashboards salvos e painel padrão (o motor de análise é reaproveitado) | a fazer |
 | 9 | Métricas, logs, explorador de arquivos, resumo do painel | a fazer |
 | 10 | Troca: React com CSRF, suíte Playwright inteira contra o Django, Django na porta 8000, remoção do FastAPI, Dockerfile e `compose.prod.yaml` | a fazer |
@@ -95,6 +95,19 @@ Rotas: `GET /login` (a tela), `POST /login`, `POST /login/verify`, `POST /login/
 7. Mudar a senha ou encerrar as outras sessões grava a `session_version` nova **na sessão atual** (`request.session["v"]`), que continua válida; as demais caem.
 
 **Ferramenta de contrato:** `docker compose exec -T django python manage.py shell < backend/scripts/contract_diff.py` compara a API do Django com o contrato congelado (rotas migradas, rotas que faltam, rotas sobrando e campos das respostas). No fim da etapa 6: 24 de 49 migradas, nenhuma sobrando; as duas "diferenças" (`/me`, `/users/summary`) são melhorias (o FastAPI não declarava o formato dessas respostas). Faltam os datasets, a consulta e o painel (etapas 7 e 8), métricas, logs, arquivos e o resumo (etapa 9) e os redirecionamentos das páginas antigas (etapa 10).
+
+## Datasets (etapa 7)
+
+**Rotas migradas (6 novas; 30 das 49 no total):** `POST /datasets/upload`, `GET /datasets`, `DELETE /datasets/{id}`, `POST` e `GET /datasets/{id}/profile`, `GET /datasets/{id}/sample`. Nenhum campo das respostas diverge do contrato do FastAPI.
+
+**Organização:** `datasets/profiling.py` é a cópia do perfilador (Pandas), trocando só de onde vem o cliente do MinIO; `datasets/services.py` tem upload com validação, listagem, exclusão, perfil e amostra; `datasets/api.py` é a camada HTTP. `analytics/runtime.py` (limite de consultas e cache de arquivos) já foi copiado porque a exclusão do dataset libera esse cache; o restante do app `analytics` chega na etapa 8. Comando novo `ensure_bucket` (o FastAPI criava o bucket ao iniciar), chamado pelo Compose depois de `migrate` e `ensure_admin`. Dependências novas: `pandas`, `numpy`, `openpyxl`.
+
+**Aprendizados:**
+1. **O tamanho é conferido antes de ler o conteúdo:** o Django sabe o tamanho do arquivo recebido (`file.size`), então acima de 10.000.000 bytes a resposta é 413 sem carregar o arquivo na memória. Atenção: o Django já gravou o corpo da requisição num arquivo temporário antes da rota rodar (o FastAPI também); um limite de tamanho no proxy continua recomendado em produção.
+2. O Django limpa o nome do arquivo enviado (fica só o último pedaço: `../../etc/passwd.csv` vira `passwd.csv`), e o nome de armazenamento no MinIO é sempre gerado pelo servidor (`<uuid>.csv`).
+3. `Exists()` do ORM calcula o `profiled` da listagem numa consulta só; `bulk_create` devolve os ids no Postgres, então colunas e valores frequentes são gravados em duas consultas, não em uma por linha; apagar o dataset apaga perfil, colunas, valores e dashboard **em cascata** (antes: três `DELETE` manuais).
+4. Nos testes, um **MinIO de mentira em memória** substitui o de verdade (testes isolados e rápidos); o código chama `storage.get_minio_client()` pelo módulo, assim um único `monkeypatch` vale em todo lugar. O MinIO real foi validado por `curl`: upload (403 sem CSRF), objeto realmente no bucket com o nome gerado, perfil, amostra e exclusão que remove o objeto.
+5. Perfis de dados continuam com os mesmos números (ex.: linha repetida conta em `duplicate_row_count`, mediana 12,5 de `5,10,10,15,20,100`).
 
 ## Comportamentos a reproduzir (paridade)
 

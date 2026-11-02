@@ -119,8 +119,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    # Ao subir: aplica as migrações pendentes, garante o administrador inicial e inicia o servidor de desenvolvimento.
-    command: sh -c "python manage.py migrate --noinput && python manage.py ensure_admin && python manage.py runserver 0.0.0.0:8000"
+    # Ao subir: aplica as migrações pendentes, garante o administrador inicial e o bucket do MinIO, e inicia o servidor de desenvolvimento.
+    command: sh -c "python manage.py migrate --noinput && python manage.py ensure_admin && python manage.py ensure_bucket && python manage.py runserver 0.0.0.0:8000"
 
   # Coletor de e-mail para desenvolvimento e testes: recebe tudo e mostra numa tela. Nada é entregue de verdade.
   # SMTP na porta 1025 (só na rede interna do Compose); tela em http://localhost:8025 (só nesta máquina).

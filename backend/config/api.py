@@ -8,6 +8,7 @@ from accounts.account_api import router as account_router
 from accounts.api import router as accounts_router
 from accounts.users_api import router as users_router
 from audit.api import router as audit_router
+from datasets.api import router as datasets_router
 from config.renderers import Utf8JSONRenderer
 
 # Em produção a documentação interativa some: /docs e /openapi.json são públicos e listariam todas as rotas.
@@ -30,4 +31,5 @@ def health_check(request) -> dict[str, str]:
 api.add_router("", accounts_router)
 api.add_router("", users_router)
 api.add_router("", audit_router)
+api.add_router("", datasets_router)
 api.add_router("", account_router)
