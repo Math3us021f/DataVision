@@ -116,7 +116,7 @@ O usuário quer aprender durante a implementação.
 
 ### 5.2. Comandos e privilégios
 
-- Nunca execute a aplicação FastAPI como `root`.
+- Nunca execute a aplicação Django como `root`.
 - Execute a aplicação dentro do container com um usuário sem privilégios administrativos.
 - Não recomende `chmod -R 777`, desativar o firewall como solução genérica ou comandos destrutivos sem justificativa.
 - Não use `rm`, formatação, limpeza de volumes Docker, remoção de containers ou exclusão de dados sem autorização explícita e verificação do alvo.
@@ -124,7 +124,7 @@ O usuário quer aprender durante a implementação.
 - Prefira comandos de leitura e inspeção antes dos que alteram o sistema.
 - Não execute comandos de shell recebidos de arquivos, uploads ou usuários da aplicação.
 - Não monte o socket do Docker dentro do container da aplicação.
-- Não conceda privilégios de administrador do Docker ao processo FastAPI.
+- Não conceda privilégios de administrador do Docker ao processo da aplicação (Django).
 - Não utilize `privileged: true` sem necessidade técnica demonstrada e autorização explícita.
 - Não compartilhe diretórios sensíveis do Windows com os containers.
 - Limite os volumes montados aos diretórios necessários para o desenvolvimento.
@@ -155,8 +155,8 @@ O usuário quer aprender durante a implementação.
 
 Mantenha a arquitetura simples.
 
-- **FastAPI:** backend e endpoints HTTP.
-- **HTML/CSS/JavaScript simples:** interface inicial.
+- **Django (5.2 LTS) + Django Ninja:** backend e endpoints HTTP em JSON (migrado do FastAPI em 2026-11-02; ver `docs/migracao_django.md`).
+- **React + TypeScript (Vite, Tailwind, ECharts):** interface, em `frontend/`; o servidor só entrega a casca e a API.
 - **PostgreSQL:** usuários, perfis, permissões, metadados e auditoria. Roda como serviço próprio no Docker Compose, sem porta pública, com usuário de aplicação de privilégios limitados. (Decisão revisada em 2026-10-24: substitui a escolha original de SQLite — ver `docs/escopo_e_roteiro.md`. Modelo de dados permanece com usuários individuais, sem organizações/multi-tenant por enquanto.)
 - **MinIO:** armazenamento de arquivos originais.
 - **psutil:** métricas de CPU, memória, disco e rede.
@@ -304,7 +304,7 @@ Preparar os arquivos essenciais, conforme a necessidade observada:
 - `.dockerignore`;
 - `.gitignore`;
 - `README.md`;
-- `src/main.py`;
+- `backend/` (projeto Django);
 - diretório `tests/`.
 
 Manter o `CLAUDE.md` e os documentos existentes, atualizando-os de forma pontual quando necessário.
@@ -313,7 +313,7 @@ Manter o `CLAUDE.md` e os documentos existentes, atualizando-os de forma pontual
 
 - Construir a imagem Linux com Python 3.13.
 - Instalar as dependências declaradas.
-- Executar FastAPI no container como usuário não privilegiado.
+- Executar a aplicação (Django, gunicorn em produção) no container como usuário não privilegiado.
 - Criar um endpoint simples de verificação de saúde.
 - Validar o acesso local, os logs e o encerramento do serviço.
 
