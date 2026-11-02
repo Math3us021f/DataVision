@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from src.core.auth import get_current_user_optional
@@ -35,6 +37,24 @@ def dataset_dashboard_page(dataset_id: int, request: Request, user: dict | None 
     if user is None:
         return RedirectResponse(url="/login")
     return templates.TemplateResponse(request, "dashboard.html", {"user": user, "dataset_id": dataset_id})
+
+
+REACT_APP_INDEX = Path("src/static/app/index.html")
+
+
+@router.get("/app")
+@router.get("/app/{path:path}")
+def react_app(user: dict | None = Depends(get_current_user_optional)):
+    """Nova interface (React). O servidor só entrega a casca e exige sessão; os dados vêm da API, que
+    valida permissões em cada rota. O roteamento interno (/app/...) é feito no navegador."""
+    if user is None:
+        return RedirectResponse(url="/login")
+    if not REACT_APP_INDEX.is_file():
+        return HTMLResponse(
+            "Nova interface ainda não gerada. Rode: docker compose --profile frontend run --rm frontend",
+            status_code=503,
+        )
+    return FileResponse(REACT_APP_INDEX, media_type="text/html")
 
 
 @router.get("/account")

@@ -200,6 +200,26 @@ def test_echarts_vendorizado_e_servido_localmente(client):
     assert response.headers["content-type"].startswith(("text/javascript", "application/javascript"))
 
 
+def test_nova_interface_sem_sessao_redireciona_para_login(client):
+    for path in ("/app", "/app/qualquer/coisa"):
+        response = client.get(path)
+        assert response.status_code in (302, 307)
+        assert response.headers["location"] == "/login"
+
+
+def test_nova_interface_com_sessao_entrega_a_casca_ou_avisa_que_nao_foi_gerada(non_admin_client):
+    from pathlib import Path
+
+    built = Path("src/static/app/index.html").is_file()
+    for path in ("/app", "/app/qualquer/coisa"):  # o roteamento interno é do navegador
+        response = non_admin_client.get(path)
+        if built:
+            assert response.status_code == 200
+            assert '<div id="root">' in response.text and "/static/app/assets/" in response.text
+        else:
+            assert response.status_code == 503
+
+
 def test_admin_index_redireciona_para_usuarios(admin_client):
     response = admin_client.get("/admin")
     assert response.status_code in (302, 307)

@@ -20,3 +20,8 @@ cookies.txt
 # Documentos com credenciais reais do servidor Ubuntu em texto puro — nunca versionar
 docs/1-Instalação e Configuração inicial.md
 docs/2-Instalação Python_Docker_MinIO.md
+
+# Frontend React: dependências e resultado do build (gerado, não versionado)
+frontend/node_modules/
+frontend/dist/
+src/static/app/

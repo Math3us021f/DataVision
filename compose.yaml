@@ -81,6 +81,19 @@ services:
     depends_on:
       - app
 
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    profiles: ["frontend"]
+    environment:
+      OUT_DIR: /out
+    volumes:
+      - ./frontend:/frontend
+      - frontend_node_modules:/frontend/node_modules
+      - ./src/static/app:/out
+
 volumes:
+  frontend_node_modules:
   db_data:
   minio_data:

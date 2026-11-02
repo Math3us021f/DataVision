@@ -77,6 +77,18 @@ docker compose up -d
 docker compose --profile test run --rm e2e
 ```
 
+## Interface nova (React) — desenvolvimento
+
+A interface nova vive em `frontend/` e abre em `http://localhost:8000/app` (as páginas atuais continuam funcionando). O Node roda **só em container**; não precisa instalar nada no Windows.
+
+```bash
+docker compose --profile frontend run --rm frontend
+```
+
+Esse comando confere os tipos (TypeScript) e gera os arquivos em `src/static/app/` (não versionados). Rode-o depois de mudar algo em `frontend/src`. Para instalar ou atualizar uma dependência: `docker compose --profile frontend run --rm frontend npm install <pacote>` (isso atualiza `frontend/package-lock.json`, que deve ser commitado).
+
+Na imagem de produção (`docker compose build`) o build do frontend acontece automaticamente num estágio à parte, e a imagem final não contém Node.
+
 ## Encerrar os serviços
 
 ```bash

@@ -13,3 +13,6 @@ __pycache__
 *.sqlite3
 logs/
 data/
+frontend/node_modules
+frontend/dist
+src/static/app

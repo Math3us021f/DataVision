@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+/* Desktop com altura suficiente: a Home cabe numa tela só (sem rolagem da página). */
+@custom-variant fit (@media (min-width: 1024px) and (min-height: 600px));
+/* Janela baixa: some o que é secundário para o essencial caber. */
+@custom-variant short (@media (max-height: 760px));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius-card: 14px;
+  --shadow-card: var(--shadow);
+}
+
+:root {
+  --background: #f7f6f3;
+  --surface: #ffffff;
+  --surface-2: #eeede8;
+  --border: #e4e2da;
+  --foreground: #1c1c1c;
+  --muted: #6b6b66;
+  --subtle: #8a8a84;
+  --accent: #ff5a1f;
+  --accent-strong: #b23d12;
+  --accent-soft: rgb(255 90 31 / 0.1);
+  --success: #4c7a3d;
+  --warning: #a6760f;
+  --danger: #b3362c;
+  --shadow: 0 1px 2px rgb(28 28 28 / 0.05), 0 6px 20px rgb(28 28 28 / 0.05);
+  color-scheme: light;
+}
+
+.dark {
+  --background: #15130f;
+  --surface: #1c1a16;
+  --surface-2: #252219;
+  --border: #2e2a22;
+  --foreground: #f2f0ea;
+  --muted: #a8a295;
+  --subtle: #726c5c;
+  --accent: #ff5a1f;
+  --accent-strong: #ff8f5c;
+  --accent-soft: rgb(255 90 31 / 0.15);
+  --success: #6fa85c;
+  --warning: #d9a441;
+  --danger: #e2584a;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(900px 420px at 12% -8%, rgb(255 90 31 / 0.07), transparent 60%),
+    radial-gradient(700px 360px at 108% 108%, rgb(111 168 92 / 0.05), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    animation: none;
+  }
+}
+
+/* Barras de rolagem discretas (listas com rolagem interna) */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}

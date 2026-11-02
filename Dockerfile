@@ -1,3 +1,13 @@
+# Estágio 1: gera os arquivos estáticos do frontend (React). O Node existe só aqui; a imagem final não o tem.
+FROM node:22.11.0-slim AS frontend-build
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+ENV OUT_DIR=/out
+RUN npm run build
+
+# Estágio 2: a aplicação.
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -13,6 +23,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=app:app src/ ./src/
+COPY --from=frontend-build --chown=app:app /out ./src/static/app
 
 USER app
 
