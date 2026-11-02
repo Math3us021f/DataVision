@@ -18,9 +18,14 @@ WORKDIR /app
 RUN groupadd --system app \
     && useradd --system --gid app --create-home app
 
-COPY requirements.txt .
+COPY requirements.txt constraints.txt ./
 
-RUN pip install --no-cache-dir -r requirements.txt
+# constraints.txt fixa também as dependências indiretas: o build de hoje é igual ao de daqui a seis meses.
+RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt
+
+# Pasta de logs já pertencente ao usuário da aplicação: um volume novo montado aqui herda esse dono
+# (sem isso, em produção o processo sem privilégios não conseguiria gravar o log).
+RUN mkdir -p /app/logs && chown app:app /app/logs
 
 COPY --chown=app:app src/ ./src/
 COPY --from=frontend-build --chown=app:app /out ./src/static/app

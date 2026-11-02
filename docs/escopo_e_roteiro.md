@@ -209,6 +209,29 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
   - Testes: backend 234 passando (novos: resumo de usuários, envios por dia, rotas de página); interface 79 passando (novos: ciclo completo de usuários incluindo lote e exclusão forçada, auditoria, métricas, logs, arquivos, login, barreira para usuário comum). Verificado por capturas de tela (desktop, painel lateral e celular).
   - **Pendências:** a tela de Usuários no celular rola a tabela na horizontal dentro do cartão (aceitável, mas pode virar lista de cartões); o arquivo local `.claude/architecture.md` (não versionado) ainda descreve a estrutura antiga.
 
+- 2026-11-02: **Etapa 12 — endurecimento local e rascunho de produção (sem tocar no servidor).**
+  - CSP em toda resposta (exceto `/docs` em desenvolvimento); o script de tema virou o arquivo externo `frontend/public/theme-init.js`. Nenhuma tela viola a política (teste Playwright em todas as telas) e um script inline injetado é bloqueado.
+  - Consulta `/datasets/{id}/query`: no máximo 3 simultâneas (503 se não houver vaga em 5 s), prazo de 15 s (504) e cache dos 3 últimos arquivos (`src/services/analytics/runtime.py`). O endpoint passou a `async` e o trabalho roda em thread; erros 409/422/404/401 continuam iguais.
+  - Logs com rotação (5 MB × 5) e `GET /logs/app` lendo só o final do arquivo (`read_log_tail`).
+  - Versões fixas: `requirements.txt` exato + `constraints.txt` completo, usado no `Dockerfile` (imagem do zero conferida idêntica); `jinja2` fora. O `Dockerfile` ganhou `/app/logs` com dono `app` (necessário para o volume de logs em produção).
+  - Rascunho de produção: `compose.prod.yaml` e `.env.prod.example`, **ensaiados localmente numa pilha isolada** (detalhes e o que não foi testado em `docs/etapa12_validacao_mvp.md`, seção 5). Nada foi aplicado no servidor.
+  - Testes novos: CSP/casca sem script inline (backend e Playwright), cauda e rotação de log, vagas/prazo/cache da consulta (503, 504, devolução da vaga, limite simultâneo), resumo de usuários.
+  - **Pendências:** decisões da seção 6 de `etapa12_validacao_mvp.md` (HTTPS, acesso ao MinIO do servidor, retenção de backup, swap, firewall, `sshd -T`) e backup do MinIO ainda por ensaiar.
+
+- 2026-11-02: **Sessão com prazo por inatividade (15 min) — pedido do usuário.**
+  - **Onde se conta o tempo:** no servidor. O cookie de sessão agora leva o horário do login (`start`, limite absoluto de 8 h, como antes) e o da última atividade (`act`); a cada requisição *feita pela pessoa* o cookie é reassinado com o horário de agora (janela deslizante). Passou de 15 min sem atividade → `401 "Sessão encerrada por inatividade"`. O navegador não decide nada: só avisa e informa o servidor de que a pessoa está ativa. Cookies antigos (sem os horários) continuam valendo e são atualizados na primeira requisição.
+  - **Atualizações automáticas não contam como atividade:** as buscas que o `useApi` repete sozinho (Métricas a cada 5 s, indicadores da Home) mandam o cabeçalho `X-Background-Request` e o servidor não renova a sessão por causa delas — senão deixar a tela de Métricas aberta nunca deslogaria. Recarregar por ação da pessoa conta.
+  - **Aviso na tela (`IdleGuard`):** com 14 min sem atividade abre a janela "Você ainda está aí?" com contagem regressiva de 60 s; **Continuar conectado** renova, **Sair agora** desconecta, e **sem resposta a pessoa é desconectada** (POST `/logout` e volta ao login com a mensagem "Sua sessão foi encerrada por inatividade"). A janela não fecha com Esc nem clicando no fundo, e mexer o mouse não conta como confirmação. Atividade (mouse, teclado, rolagem, toque) avisa o servidor no máximo a cada 20 s; o último horário de atividade é compartilhado entre abas pelo `localStorage`, então uma aba parada não derruba a sessão de quem está usando outra.
+  - O prazo (900 s) vem do servidor em `GET /me` (`idle_timeout_seconds`), uma fonte só. Páginas (`/app`, `/admin/...`) com sessão vencida redirecionam ao login.
+  - **Limitações:** o relógio do navegador e o do servidor podem diferir de segundos (por isso o aviso é só um aviso; vale o servidor); com vários navegadores/aparelhos, cada cookie tem o seu prazo; o teste de várias abas não foi automatizado (o relógio simulado do Playwright é por aba).
+  - Testes: 13 de backend (relógio simulado: expira, renova, não renova por requisição automática, limite de 8 h, cookie antigo, páginas, usuários independentes, cookie adulterado) e 7 de interface (aviso, continuar, desconexão, Esc/fundo/mouse, atividade adia, automáticas, motivo no login).
+
+- **Planejado (decidido com o usuário em 2026-11-02, ainda não implementado): verificação em dois passos por e-mail.**
+  - Fluxo: senha correta → código de 6 dígitos por e-mail (guardado só como hash, validade curta, uso único, poucas tentativas, nunca no log) → sessão. Antes do código não existe sessão.
+  - Cadastro: o admin cria a conta com o e-mail informado pela pessoa. Depois, **a pessoa pode atualizar o próprio e-mail, e isso exige confirmação** (código enviado ao novo endereço). **O admin também pode alterar o e-mail**; nesse caso não há confirmação por e-mail e a pessoa só é avisada por uma **notificação dentro do sistema** (aba de notificações). Toda troca vai para a auditoria.
+  - Exibição sempre mascarada (`m***@gmail.com`); o e-mail é usado só para o código.
+  - Em aberto: provedor de envio (SMTP real ou só um coletor local, o Mailpit, em desenvolvimento), obrigatoriedade (proposta: obrigatório para admins, e para os demais quando houver e-mail), e se haverá também aplicativo autenticador (TOTP).
+
 ## Próximo passo recomendado
 
 Etapa 12 em andamento: inventário feito; decidir os pontos abertos do relatório ([etapa12_validacao_mvp.md](etapa12_validacao_mvp.md), seção 6), confirmar a configuração efetiva do SSH (`sudo sshd -T`) e então refinar o plano de deploy (`compose.prod.yaml`, segredos novos, bucket novo no MinIO) para submetê-lo à aprovação.

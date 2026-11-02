@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, BACKGROUND_HEADER } from "@/lib/api";
 
 interface State<T> {
   data: T | null;
@@ -8,16 +8,23 @@ interface State<T> {
   loading: boolean;
 }
 
-/** Busca `path` (null = não busca) e, se `refreshMs`, atualiza em segundo plano sem piscar a tela. */
+/**
+ * Busca `path` (null = não busca) e, se `refreshMs`, atualiza em segundo plano sem piscar a tela.
+ * As atualizações automáticas vão marcadas como "background": não contam como atividade da pessoa,
+ * senão uma tela que se atualiza sozinha manteria a sessão aberta para sempre.
+ */
 export function useApi<T>(path: string | null, refreshMs?: number) {
   const [state, setState] = useState<State<T>>({ data: null, error: null, loading: path !== null });
   const [tick, setTick] = useState(0);
+  const automatic = useRef(false);
 
   useEffect(() => {
     if (path === null) return;
     const controller = new AbortController();
+    const headers = automatic.current ? BACKGROUND_HEADER : undefined;
+    automatic.current = false;
 
-    api<T>(path, {}, controller.signal)
+    api<T>(path, { headers }, controller.signal)
       .then((data) => setState({ data, error: null, loading: false }))
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
@@ -31,9 +38,13 @@ export function useApi<T>(path: string | null, refreshMs?: number) {
 
   useEffect(() => {
     if (!refreshMs || path === null) return;
+    const refresh = () => {
+      automatic.current = true;
+      setTick((t) => t + 1);
+    };
     // Com a aba em segundo plano não consulta a API; ao voltar, atualiza na hora.
-    const id = window.setInterval(() => !document.hidden && setTick((t) => t + 1), refreshMs);
-    const onVisible = () => !document.hidden && setTick((t) => t + 1);
+    const id = window.setInterval(() => !document.hidden && refresh(), refreshMs);
+    const onVisible = () => !document.hidden && refresh();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearInterval(id);
@@ -41,6 +52,9 @@ export function useApi<T>(path: string | null, refreshMs?: number) {
     };
   }, [refreshMs, path]);
 
-  const reload = useCallback(() => setTick((t) => t + 1), []);
+  const reload = useCallback(() => {
+    automatic.current = false; // recarregar por ação da pessoa conta como atividade
+    setTick((t) => t + 1);
+  }, []);
   return { ...state, reload };
 }

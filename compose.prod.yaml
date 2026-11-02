@@ -1,0 +1,102 @@
+# RASCUNHO DE PRODUÇÃO — NÃO APROVADO. Ver docs/etapa12_validacao_mvp.md, seção 5.
+# Só deve ser usado no servidor depois de: snapshot da VM, backup, decisões da seção 6 e aprovação explícita.
+#
+# Diferenças em relação ao compose.yaml (desenvolvimento):
+#   - sem --reload e sem montar o código: a aplicação é exatamente o que está dentro da imagem;
+#   - APP_ENV=production (sem /docs) e processo sem privilégios, sistema de arquivos somente leitura;
+#   - Postgres sem porta publicada (só a aplicação o alcança, pela rede interna);
+#   - o MinIO NÃO faz parte deste arquivo: usa-se o que já existe no servidor, com bucket e usuário novos;
+#   - segredos só por variáveis de ambiente (arquivo .env.prod no servidor, chmod 600, fora do Git);
+#   - limites de memória/CPU, reinício automático, verificação de saúde e rotação dos logs do Docker.
+#
+# Uso (exemplo): docker compose --env-file .env.prod -f compose.prod.yaml up -d
+name: datavision-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Tag explícita por versão: voltar atrás = subir a tag anterior (APP_VERSION=anterior).
+    image: "datavision-app:${APP_VERSION:?defina APP_VERSION (ex 2026-11-02)}"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 200
+    mem_limit: 1g
+    cpus: 1.5
+    logging: *logging
+    # Padrão: só a própria máquina. Para a rede host-only, APP_BIND_ADDRESS=<IP da VM nessa rede>
+    # (decisão pendente). Nunca 0.0.0.0 sem decisão explícita.
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # alcança o MinIO que já roda no servidor
+    environment:
+      APP_ENV: production
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}  # true quando houver HTTPS
+      DATABASE_URL: postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-host.docker.internal:9000}
+      # Os nomes são os da aplicação, mas aqui valem as chaves do USUÁRIO DE SERVIÇO criado só para o
+      # bucket do DataVision — nunca as credenciais root do MinIO.
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    volumes:
+      - app_logs:/app/logs
+      - ./data:/app/data:ro  # explorador de arquivos (somente leitura)
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  db:
+    # Versão fixada pelo digest da imagem testada em desenvolvimento.
+    image: postgres@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+    restart: unless-stopped
+    mem_limit: 768m
+    logging: *logging
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=50"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      APP_DB_USER: ${APP_DB_USER}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    # Sem "ports": o banco só existe na rede interna do Compose.
+    volumes:
+      - db_data:/var/lib/postgresql
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+  app_logs:

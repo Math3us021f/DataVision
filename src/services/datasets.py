@@ -14,6 +14,7 @@ from psycopg.types.json import Jsonb
 
 from src.core.logging_config import logger
 from src.core.storage import get_minio_client
+from src.services.analytics.runtime import dataframe_cache
 from src.services.profiling import load_dataframe, profile_dataframe
 
 MAX_UPLOAD_BYTES = 10_000_000  # 10 MB
@@ -91,6 +92,7 @@ def delete_dataset_core(conn, dataset_id: int, object_key: str) -> None:
     forçada de um usuário (DELETE /users/{id}?force=true), que apaga os
     datasets de outra pessoa antes de apagar a conta.
     """
+    dataframe_cache.evict(object_key)  # libera a memória do arquivo apagado
     try:
         get_minio_client().remove_object(os.environ["MINIO_BUCKET"], object_key)
     except Exception as exc:

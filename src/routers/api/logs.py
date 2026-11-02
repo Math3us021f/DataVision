@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from src.core.auth import require_admin
-from src.core.logging_config import LOG_FILE_PATH
+from src.core.logging_config import LOG_FILE_PATH, read_log_tail
 
 router = APIRouter(prefix="/logs", tags=["logs"])
 
@@ -12,10 +12,4 @@ def read_app_logs(
     admin: dict = Depends(require_admin),
 ) -> dict:
     """Devolve as últimas `limit` linhas do log da aplicação. Caminho do arquivo é fixo no código."""
-    try:
-        with open(LOG_FILE_PATH, encoding="utf-8") as log_file:
-            lines = log_file.readlines()
-    except FileNotFoundError:
-        lines = []
-
-    return {"lines": [line.rstrip("\n") for line in lines[-limit:]]}
+    return {"lines": read_log_tail(LOG_FILE_PATH, limit)}

@@ -4,18 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DataVision</title>
-    <script>
-      // Tema e menu lateral aplicados antes de desenhar (sem "piscar"). Mesmas chaves das páginas
-      // atuais, então a escolha vale nas duas interfaces.
-      (function () {
-        var theme = null;
-        try { theme = localStorage.getItem("datavision-theme"); } catch (e) {}
-        if (theme !== "light" && theme !== "dark") {
-          theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-        }
-        document.documentElement.classList.toggle("dark", theme === "dark");
-      })();
-    </script>
+    <!-- Tema aplicado antes de desenhar (sem "piscar"); em arquivo próprio para não haver script inline (CSP). -->
+    <script src="/static/app/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

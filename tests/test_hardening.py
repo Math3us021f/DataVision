@@ -23,7 +23,7 @@ def client():
         yield c
 
 
-@pytest.mark.parametrize("path", ["/health", "/login", "/static/css/style.css"])
+@pytest.mark.parametrize("path", ["/health", "/login", "/app", "/static/app/theme-init.js"])
 def test_cabecalhos_de_seguranca_em_todas_as_respostas(client, path):
     headers = client.get(path).headers
     assert headers["x-content-type-options"] == "nosniff"
@@ -73,3 +73,34 @@ def test_upload_muito_maior_que_o_limite_e_recusado_com_413(client):
     gigante = b"a,b\n" + b"1,2\n" * (MAX_UPLOAD_BYTES // 2)  # ~2,5x o limite
     response = client.post("/datasets/upload", files={"file": ("grande.csv", io.BytesIO(gigante), "text/csv")})
     assert response.status_code == 413
+
+
+def test_politica_de_conteudo_so_aceita_a_propria_origem_e_nenhum_script_inline(client):
+    csp = client.get("/login").headers["content-security-policy"]
+    diretivas = dict(parte.strip().split(" ", 1) for parte in csp.split(";") if parte.strip())
+    assert diretivas["default-src"] == "'self'"
+    assert diretivas["script-src"] == "'self'"  # sem 'unsafe-inline' nem 'unsafe-eval' nem domínios externos
+    assert "'unsafe-eval'" not in csp and "http" not in csp
+    assert diretivas["object-src"] == "'none'"
+    assert diretivas["frame-ancestors"] == "'none'"
+    assert diretivas["connect-src"] == "'self'"
+
+
+def test_casca_da_interface_nao_tem_script_inline(client):
+    import re
+    from pathlib import Path
+
+    index = Path("src/static/app/index.html")
+    if not index.is_file():
+        pytest.skip("interface não gerada neste ambiente")
+    html = index.read_text(encoding="utf-8")
+    scripts = re.findall(r"<script\b([^>]*)>", html)
+    assert scripts and all("src=" in atributos for atributos in scripts)  # todo script é arquivo externo
+    assert not re.search(r"<script\b[^>]*>\s*[^\s<]", html)  # nenhum corpo de script dentro do HTML
+    assert not re.search(r"\son[a-z]+\s*=", html, re.IGNORECASE)  # sem onclick/onload etc. na casca
+
+
+def test_documentacao_interativa_fica_fora_da_politica_so_fora_de_producao(client):
+    # /docs depende de CDN e de script inline: só existe em desenvolvimento e não recebe a política.
+    if main_module._docs_enabled:
+        assert "content-security-policy" not in client.get("/docs").headers

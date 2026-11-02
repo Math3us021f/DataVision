@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /** <dialog> nativo: o navegador cuida do foco preso, da tecla Esc e do fundo escurecido. */
-function useNativeDialog(open: boolean, onClose: () => void) {
+function useNativeDialog(open: boolean, onClose: () => void, dismissible = true) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -18,8 +18,14 @@ function useNativeDialog(open: boolean, onClose: () => void) {
     const el = ref.current;
     if (!el) return;
     el.addEventListener("close", onClose);
-    return () => el.removeEventListener("close", onClose);
-  }, [onClose]);
+    // Janela que exige uma resposta explícita: a tecla Esc não a fecha.
+    const keepOpen = (e: Event) => !dismissible && e.preventDefault();
+    el.addEventListener("cancel", keepOpen);
+    return () => {
+      el.removeEventListener("close", onClose);
+      el.removeEventListener("cancel", keepOpen);
+    };
+  }, [onClose, dismissible]);
 
   return ref;
 }
@@ -32,14 +38,15 @@ interface BaseProps {
   footer?: ReactNode;
 }
 
-/** Janela centralizada (confirmações). Clicar no fundo fecha. */
-export function Modal({ open, onClose, title, children, footer }: BaseProps) {
-  const ref = useNativeDialog(open, onClose);
+/** Janela centralizada (confirmações). Clicar no fundo fecha, a menos que `dismissible` seja falso
+ * (aí só os botões respondem: nem o fundo nem a tecla Esc fecham). */
+export function Modal({ open, onClose, title, children, footer, dismissible = true }: BaseProps & { dismissible?: boolean }) {
+  const ref = useNativeDialog(open, onClose, dismissible);
   return (
     <dialog
       ref={ref}
       aria-label={title}
-      onClick={(e) => e.target === ref.current && onClose()}
+      onClick={(e) => dismissible && e.target === ref.current && onClose()}
       className="m-auto w-[min(92vw,440px)] rounded-card border border-border bg-surface p-0 text-foreground shadow-card backdrop:bg-black/60 backdrop:backdrop-blur-[2px]"
     >
       {open && (

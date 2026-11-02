@@ -1,15 +1,29 @@
 import os
+import time
 
 import bcrypt
-from fastapi import Cookie, Depends, HTTPException, Response, status
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from fastapi import Cookie, Depends, Header, HTTPException, Response, status
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from src.core.db import get_connection
 
 MIN_PASSWORD_LENGTH = 8
 
 SESSION_COOKIE_NAME = "session"
-SESSION_MAX_AGE_SECONDS = 60 * 60 * 8  # 8 horas
+SESSION_MAX_AGE_SECONDS = 60 * 60 * 8  # 8 horas desde o login, mesmo com atividade
+# Sem nenhuma atividade da pessoa por este tempo, a sessão deixa de valer. Quem decide é o servidor;
+# o navegador só avisa antes (ver IdleGuard no frontend) e lê este valor em GET /me.
+SESSION_IDLE_TIMEOUT_SECONDS = 15 * 60
+# Requisições automáticas (telas que se atualizam sozinhas) mandam este cabeçalho e NÃO contam como
+# atividade: sem isso, deixar a tela de Métricas aberta manteria a sessão viva para sempre.
+BACKGROUND_REQUEST_HEADER = "X-Background-Request"
+
+IDLE_DETAIL = "Sessão encerrada por inatividade"
+EXPIRED_DETAIL = "Sessão expirada"
+
+
+def _now() -> float:
+    return time.time()  # função à parte para os testes poderem "andar o relógio"
 
 
 def hash_password(password: str) -> str:
@@ -68,25 +82,36 @@ def _get_serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(secret_key, salt="datavision-session")
 
 
-def create_session_token(user_id: int, session_version: int) -> str:
-    """O cookie guarda só o id e a versão de sessão; permissões são sempre lidas do banco.
+def create_session_token(user_id: int, session_version: int, started_at: float | None = None) -> str:
+    """O cookie guarda o id, a versão de sessão e dois horários: o do login (`start`, limite absoluto) e
+    o da última atividade (`act`, limite por inatividade). Permissões são sempre lidas do banco.
     Trocar a senha incrementa session_version no banco, invalidando cookies emitidos antes."""
-    serializer = _get_serializer()
-    return serializer.dumps({"user_id": user_id, "v": session_version})
+    now = _now()
+    return _get_serializer().dumps({"user_id": user_id, "v": session_version, "start": started_at or now, "act": now})
 
 
 def _read_session_token(token: str) -> dict:
     serializer = _get_serializer()
     try:
-        return serializer.loads(token, max_age=SESSION_MAX_AGE_SECONDS)
-    except SignatureExpired:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão expirada")
+        payload, signed_at = serializer.loads(token, return_timestamp=True)
     except BadSignature:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão inválida")
 
+    # Cookies emitidos antes desta mudança não têm os horários: usa o momento em que foram assinados.
+    signed_at_epoch = signed_at.timestamp()
+    start = payload.get("start", signed_at_epoch)
+    last_activity = payload.get("act", signed_at_epoch)
 
-def get_current_user(session: str | None = Cookie(default=None)) -> dict:
-    """Dependency do FastAPI: exige sessão válida e usuário ativo, com dados sempre atuais do banco."""
+    now = _now()
+    if now - start > SESSION_MAX_AGE_SECONDS:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=EXPIRED_DETAIL)
+    if now - last_activity > SESSION_IDLE_TIMEOUT_SECONDS:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=IDLE_DETAIL)
+    return {**payload, "start": start, "act": last_activity}
+
+
+def _authenticate(session: str | None) -> tuple[dict, dict]:
+    """Valida o cookie e devolve (usuário atual do banco, conteúdo do cookie)."""
     if session is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Não autenticado")
 
@@ -105,16 +130,30 @@ def get_current_user(session: str | None = Cookie(default=None)) -> dict:
     if payload.get("v") != user["session_version"]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessão encerrada")
 
+    return user, payload
+
+
+def get_current_user(
+    response: Response,
+    session: str | None = Cookie(default=None),
+    background: str | None = Header(default=None, alias=BACKGROUND_REQUEST_HEADER),
+) -> dict:
+    """Dependency do FastAPI: exige sessão válida e usuário ativo, com dados sempre atuais do banco.
+
+    Cada requisição feita pela pessoa renova o prazo de inatividade (cookie reassinado com o horário
+    de agora); requisições automáticas, marcadas como "background", não renovam."""
+    user, payload = _authenticate(session)
+    if background is None:
+        set_session_cookie(response, create_session_token(user["id"], user["session_version"], started_at=payload["start"]))
     return user
 
 
 def get_current_user_optional(session: str | None = Cookie(default=None)) -> dict | None:
     """Como get_current_user, mas devolve None em vez de 401 — para páginas que decidem
-    o que mostrar (ex: redirecionar pro login) em vez de simplesmente barrar o acesso."""
-    if session is None:
-        return None
+    o que mostrar (ex: redirecionar pro login) em vez de simplesmente barrar o acesso.
+    Não renova a sessão: a página carregada logo em seguida chama a API, que renova."""
     try:
-        return get_current_user(session)
+        return _authenticate(session)[0]
     except HTTPException:
         return None
 

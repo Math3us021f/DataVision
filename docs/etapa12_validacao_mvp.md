@@ -22,18 +22,21 @@ Escopo: autenticação/sessão, autorização, uploads, consulta analítica, log
 | 4 | Baixa | Sem cabeçalhos de segurança. | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin` em todas as respostas. |
 | 5 | Baixa | `/docs`, `/redoc` e `/openapi.json` públicos (sem login) listam todas as rotas, inclusive as de admin. | Somem com `APP_ENV=production`. |
 | 6 | Informativa | Cookie de sessão sem `Secure` e configurado em dois lugares. | `set_session_cookie` único; `SESSION_COOKIE_SECURE=true` liga o `Secure` (usar quando houver HTTPS). |
+| 7 | Média | **Sem CSP** (2026-11-02). As páginas antigas tinham `<script>` inline; com a interface toda em React sobrou um só (o tema). | O tema virou arquivo externo (`theme-init.js`) e toda resposta (exceto `/docs`, que só existe em desenvolvimento) leva `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`. Testado: nenhuma tela viola a política, e um script injetado na página é bloqueado pelo navegador. `'unsafe-inline'` só em estilo (o React usa o atributo `style`). |
+| 8 | Média | **Consulta analítica sem limite** (2026-11-02): relia o arquivo do MinIO a cada requisição e qualquer usuário logado podia ocupar o servidor. | No máximo 3 consultas ao mesmo tempo (espera 5 s por uma vaga, senão **503**); a resposta tem prazo de 15 s (**504**); a thread que estourou o prazo não pode ser interrompida, mas segura a vaga até terminar, então o limite nunca é ultrapassado; cache dos 3 últimos arquivos lidos (chave = `object_key`, único e imutável), liberado ao apagar o dataset. |
+| 9 | Baixa | **Log sem rotação e lido inteiro** (2026-11-02). | `RotatingFileHandler` (5 MB × 5 arquivos) e `GET /logs/app` lê só o final do arquivo, de trás para frente. |
+| 10 | Baixa | **Dependências sem versão fixa** (2026-11-02). | `requirements.txt` com versões exatas + `constraints.txt` com **todas** as versões da imagem validada (diretas e indiretas); o `Dockerfile` instala com `-c constraints.txt`. Conferido: uma imagem construída do zero ficou com pacotes idênticos ao `constraints.txt` (e sem `jinja2`). |
+
+| 11 | Média | **Sessão de 8 h sem expirar por inatividade** (2026-11-02, pedido do usuário): um computador deixado logado ficava aberto o dia todo. | Prazo de **15 min sem atividade**, contado no servidor (cookie reassinado a cada requisição da pessoa; chamadas automáticas não renovam); limite absoluto de 8 h mantido; aviso com confirmação aos 14 min e desconexão se não confirmar. Detalhes em `docs/escopo_e_roteiro.md`. |
 
 ### Risco residual (não corrigido)
 
 | Prioridade | Risco | Observação / recomendação |
 |---|---|---|
-| Média | **Sem CSP.** | As páginas têm `<script>` inline (tema, `DATASET_ID`); uma CSP exige nonces. Mitigado por: `textContent` em todo texto de usuário e tooltip do ECharts sem HTML (testado com `<img onerror>` real). |
-| Média | **Consulta analítica sem limite de tempo** e relê o arquivo do MinIO a cada requisição; qualquer usuário logado pode sobrecarregar o worker. | Definir timeout, limitar concorrência e/ou cachear o DataFrame; no proxy, limitar taxa. |
-| Média | **Rate limit do login em memória**, chave `(ip, usuário)`. Atrás de proxy reverso, o IP seria o do proxy. | Aceitável com 1 processo e sem proxy; se houver proxy, ler `X-Forwarded-For` só de proxy confiável. |
+| Média | **Rate limit do login em memória**, chave `(ip, usuário)`. Atrás de proxy reverso, o IP seria o do proxy. | Aceitável com 1 processo e sem proxy; se houver proxy, ler `X-Forwarded-For` só de proxy confiável. O `compose.prod.yaml` não define `--workers`, então roda 1 processo (necessário por isso). |
 | Baixa | Sem token CSRF explícito. | `SameSite=Lax` + API em JSON cobre o cenário do MVP; revisar se houver login de outros dispositivos. |
-| Baixa | `GET /logs/app` lê o arquivo de log inteiro a cada chamada; sem rotação. | Rotacionar logs (`RotatingFileHandler`) e ler só o final. |
-| Baixa | Dependências sem versão fixa (`requirements.txt`). | Fixar versões (lock) antes do deploy, para o build ser reproduzível. |
-| Baixa | MinIO acessado sem TLS (`secure=False`). | Aceitável se tráfego ficar na mesma máquina/rede isolada; decidir no plano de deploy. |
+| Baixa | MinIO acessado sem TLS (`secure=False`, fixo no código). | Aceitável se tráfego ficar na mesma máquina/rede isolada (a aplicação alcança o MinIO por `host.docker.internal`); decidir no plano de deploy. |
+| Baixa | Limites das consultas são valores fixos no código (`services/analytics/runtime.py`), calibrados por estimativa, sem teste de carga. | Medir no servidor real antes de ajustar. |
 | Informativa | Sem Alembic: mudanças de schema são `IF NOT EXISTS` no `init_db()`. | Adiado de propósito; reavaliar antes de qualquer migração destrutiva. |
 
 ## 3. Divergências entre documentos (para você decidir)
@@ -70,12 +73,16 @@ Os dois documentos de instalação (fora do Git) contêm **credenciais em texto 
 
 Nada abaixo deve ser executado antes de: (a) o inventário ser feito e revisado, (b) as decisões da seção 6 serem tomadas, (c) você aprovar explicitamente.
 
+**Rascunho já escrito no repositório (2026-11-02): [`compose.prod.yaml`](../compose.prod.yaml) e [`.env.prod.example`](../.env.prod.example).** Contém: imagem com tag de versão (`APP_VERSION`), sem `--reload` nem montagem de código, `APP_ENV=production`, sistema de arquivos somente leitura (`read_only` + `/tmp` em memória), `cap_drop: ALL`, `no-new-privileges`, limites (app 1 GB / 1,5 CPU; Postgres 768 MB), reinício automático, verificação de saúde, logs do Docker com rotação, Postgres fixado pelo digest da imagem testada e **sem porta publicada**, aplicação escutando só em `127.0.0.1` por padrão (`APP_BIND_ADDRESS` para mudar), MinIO existente alcançado por `host.docker.internal` (o MinIO **não** está no arquivo).
+
+**Ensaio local feito (sem tocar no servidor):** o arquivo foi subido numa pilha isolada (projeto `datavision-prod`, porta 18000, segredos aleatórios, bucket de teste no MinIO de dev). Resultado: aplicação e banco `healthy`; `/health` e `/login` 200; `/docs` e `/openapi.json` **404**; cabeçalhos de segurança e CSP presentes; o banco aparece só como `5432/tcp` (nada publicado); o processo roda como `app` e **não consegue gravar** em `/app/src` (somente leitura); o volume de logs é gravável; login, upload, perfil e consulta (`SP=30, RJ=5`) funcionaram contra o MinIO via `host.docker.internal`; uso de memória ~84 MB (app) e ~37 MB (banco). Tudo isso foi removido depois (contêineres, volumes, imagem e bucket de teste). **Não foi testado:** o MinIO *do servidor* (só o de dev), HTTPS, backup do MinIO, e o comportamento com a VM de 4 GB sob carga.
+
 **Pré-requisitos**
 1. Inventário somente leitura concluído e revisado.
 2. Segredos novos (nunca reaproveitar os de dev nem os atuais do servidor) em arquivo `.env` no servidor com `chmod 600`.
 3. `compose.prod.yaml` separado do de dev: **sem** `--reload`, **sem** bind mounts de código, `APP_ENV=production`, versões de imagem fixas (digest), e portas publicadas **só** na interface necessária (nunca `0.0.0.0` sem decisão explícita). Postgres sem porta publicada.
 4. MinIO: **não alterar o container existente**. Criar bucket e usuário de serviço novos (política só nesse bucket); testar a conectividade container→MinIO do host antes.
-5. Dependências fixadas (lock) e imagem construída e testada localmente.
+5. ~~Dependências fixadas (lock) e imagem construída e testada localmente.~~ **Feito** (`constraints.txt`; imagem do zero idêntica ao lock; ensaio acima). Para atualizar uma dependência: suba a imagem, rode os testes, regenere o `constraints.txt` (`docker compose exec -T app pip list --format=freeze`, sem `pip`/`setuptools`/`wheel`) e confira com um build limpo.
 
 **Reversão (preparar antes de começar)**
 - Como o servidor é uma VM VirtualBox: **snapshot da VM** imediatamente antes (`VBoxManage snapshot "<vm>" take pre-deploy-datavision`) — reversão completa e rápida.

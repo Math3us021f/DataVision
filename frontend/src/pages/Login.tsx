@@ -8,8 +8,14 @@ import { Field } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+const EXPIRED_NOTICES: Record<string, string> = {
+  idle: "Sua sessão foi encerrada por inatividade. Entre novamente para continuar.",
+  time: "Sua sessão expirou (tempo máximo de uso). Entre novamente para continuar.",
+};
+
 /** Tela de entrada (fora do menu lateral). Sem cadastro: contas são criadas por um administrador. */
 export default function Login() {
+  const notice = EXPIRED_NOTICES[new URLSearchParams(window.location.search).get("expired") ?? ""];
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -43,6 +49,11 @@ export default function Login() {
           <h1 className="text-xl font-semibold tracking-tight">DataVision</h1>
         </div>
         <p className="mt-3 text-sm text-muted">Entre com sua conta para continuar.</p>
+        {notice && (
+          <div id="login-notice" role="status" className="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+            {notice}
+          </div>
+        )}
 
         <form id="login-form" onSubmit={submit} noValidate className="mt-5 flex flex-col gap-4">
           <Field label="Usuário" htmlFor="username">

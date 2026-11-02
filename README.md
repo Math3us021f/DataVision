@@ -12,7 +12,7 @@ Etapas 0 a 11 concluídas: DataVision Admin + datasets (MinIO) + perfilamento + 
 - Windows + Docker Desktop (containers Linux).
 - Python 3.13 dentro do container (não é necessário instalar no Windows).
 - PostgreSQL como serviço separado (`db`) no Docker Compose.
-- Dependências em `requirements.txt`.
+- Dependências em `requirements.txt` (versões exatas); `constraints.txt` fixa também as indiretas, para o build ser reproduzível. Rascunho de produção (não aprovado) em `compose.prod.yaml` — ver `docs/etapa12_validacao_mvp.md`.
 
 ## Configurar variáveis de ambiente
 

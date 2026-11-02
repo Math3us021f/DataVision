@@ -46,7 +46,8 @@ def test_me_com_sessao_valida_retorna_usuario(client):
     body = response.json()
     assert body["username"] == ADMIN_USERNAME
     assert body["is_admin"] is True
-    assert set(body) == {"username", "is_admin", "display_name", "avatar_color"}  # nada além do necessário (sem hash, sem sessão)
+    # nada além do necessário (sem hash, sem token); o prazo de inatividade é só um número para o aviso na tela
+    assert set(body) == {"username", "is_admin", "display_name", "avatar_color", "idle_timeout_seconds"}
 
 
 def test_logout_invalida_a_sessao(client):

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from src.core.auth import (
     SESSION_COOKIE_NAME,
+    SESSION_IDLE_TIMEOUT_SECONDS,
     burn_password_check,
     create_session_token,
     get_current_user,
@@ -194,12 +195,27 @@ app = FastAPI(
 )
 
 
+# Política de segurança de conteúdo: a interface só carrega scripts, fontes, imagens e conexões da
+# própria origem (a casca do React não tem nenhum script inline). Se algum texto de usuário escapasse
+# do escape do React, o navegador ainda recusaria executar o script injetado. 'unsafe-inline' só em
+# estilos: o React usa o atributo style (larguras de barras, posições); estilo não executa código.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+    "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "
+    "form-action 'self'; frame-ancestors 'none'"
+)
+# A documentação interativa (só existe fora de produção) carrega scripts de CDN e tem script inline.
+_PATHS_WITHOUT_CSP = ("/docs", "/redoc", "/openapi.json")
+
+
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")  # impede a aplicação de ser embutida em outro site (clickjacking)
     response.headers.setdefault("Referrer-Policy", "same-origin")
+    if request.url.path not in _PATHS_WITHOUT_CSP:
+        response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
     return response
 
 app.include_router(users_router)
@@ -296,4 +312,6 @@ def me(current_user: dict = Depends(get_current_user)) -> dict:
         "is_admin": current_user["is_admin"],
         "display_name": current_user["display_name"],
         "avatar_color": avatar_color_of(current_user["preferences"]),
+        # O navegador usa este valor para avisar antes de a sessão cair; quem encerra de verdade é o servidor.
+        "idle_timeout_seconds": SESSION_IDLE_TIMEOUT_SECONDS,
     }

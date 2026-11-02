@@ -6,6 +6,8 @@ export interface Me {
   is_admin: boolean;
   display_name: string | null;
   avatar_color: AvatarColor | null;
+  /** Tempo sem atividade até o servidor encerrar a sessão (o navegador só avisa antes). */
+  idle_timeout_seconds: number;
 }
 
 export interface Profile {

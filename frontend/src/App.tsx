@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 
+import { IdleGuard } from "@/components/IdleGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/hooks/useApi";
@@ -41,6 +42,7 @@ export default function App() {
     <ToastProvider>
     <BrowserRouter basename="/app">
       <AppShell me={me.data}>
+        {me.data && <IdleGuard idleSeconds={me.data.idle_timeout_seconds} />}
         {me.data ? (
           <Routes>
             <Route path="/" element={<Home me={me.data} />} />

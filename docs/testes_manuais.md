@@ -35,8 +35,9 @@ curl -s -b cookies.txt http://localhost:8000/me
 ```
 
 - `-b cookies.txt` reenvia o cookie salvo no login.
-- Esperado: `{"username":"admin","is_admin":true}`.
+- Esperado: `{"username":"admin","is_admin":true,"display_name":null,"avatar_color":null,"idle_timeout_seconds":900}` (os campos de nome e cor mudam se a pessoa os definiu em "Minha conta").
 - Sem `-b cookies.txt` (ou com cookie inválido/expirado) → `401`.
+- **Prazo por inatividade:** a sessão cai após 15 min sem atividade (`401` com `"Sessão encerrada por inatividade"`); cada chamada feita pela pessoa renova o prazo e devolve um `set-cookie` novo (por isso o `-c cookies.txt` nos comandos seguintes mantém a sessão viva). Chamada com o cabeçalho `X-Background-Request: 1` **não** renova nem devolve cookie. O limite absoluto de 8 h desde o login continua valendo. À mão na tela: entre, não mexa em nada por ~14 min (aparece "Você ainda está aí?"); sem clicar em "Continuar conectado" por mais 1 min, a tela volta ao login com o aviso de inatividade. Testado por `tests/test_session_idle.py` (relógio simulado) e `tests_e2e/test_session_idle.py`.
 
 ## Logout
 
@@ -194,6 +195,8 @@ curl -s -b cookies.txt -X POST http://localhost:8000/datasets/1/query \
 - `limit` (1–50, padrão 20) corta as categorias; `truncated: true` avisa que havia mais.
 - Dataset sem perfil → `409`. Coluna inexistente ou agregação incompatível (ex: `sum` em texto) → `422` com a explicação. Chave desconhecida no JSON → `422`. Dataset de outro usuário → `404`. Sem login → `401`.
 - Colunas de data só são reconhecidas em datasets **perfilados depois** desta mudança — reperfile datasets antigos. Formato `dd/mm/aaaa` é lido com dia primeiro; `aaaa-mm-dd` é lido como ISO.
+- Proteções de recurso: no máximo 3 consultas ao mesmo tempo (sem vaga em 5 s → `503` "O servidor está ocupado…") e prazo de 15 s (estourou → `504` "A consulta demorou demais…"). Difíceis de provocar à mão com arquivos pequenos; estão cobertos por `tests/test_query_limits.py`, que força os limites. O arquivo lido fica em cache (3 por vez), então a 2ª consulta ao mesmo dataset não relê o MinIO.
+- Cabeçalho `Content-Security-Policy` em toda resposta: `curl -s -I http://localhost:8000/health | grep -i content-security` deve mostrar `default-src 'self'; script-src 'self'; ...` (e nenhum `unsafe-inline` em `script-src`).
 
 ## Minha conta (perfil, acessos e sessões)
 
