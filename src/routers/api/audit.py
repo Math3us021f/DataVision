@@ -13,6 +13,7 @@ router = APIRouter(prefix="/audit-logs", tags=["audit"])
 AllowedAction = Literal[
     "", "create_user", "activate_user", "deactivate_user", "delete_user",
     "force_delete_user_datasets", "reset_password", "change_own_password", "revoke_other_sessions",
+    "change_own_email", "admin_change_email",
 ]
 
 

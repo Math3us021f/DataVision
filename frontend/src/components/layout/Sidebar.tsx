@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
+import { NotificationsEntry } from "@/components/layout/NotificationsEntry";
 import { UserAvatar, displayNameOf } from "@/components/UserAvatar";
 import { useTheme } from "@/hooks/useTheme";
 import { api } from "@/lib/api";
@@ -127,6 +128,7 @@ export function Sidebar({
           {MAIN.map((item) => (
             <NavItem key={item.href} item={item} collapsed={collapsed} />
           ))}
+          {me && <NotificationsEntry collapsed={collapsed} />}
         </nav>
 
         {me?.is_admin && (

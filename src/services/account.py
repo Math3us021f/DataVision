@@ -4,6 +4,8 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
+from src.services.verification import mask_email
+
 # Cores do avatar de iniciais. A interface mapeia cada nome para uma cor; o servidor só aceita estes valores.
 AVATAR_COLORS = ("orange", "green", "blue", "violet", "rose", "amber", "teal", "slate")
 MAX_DISPLAY_NAME = 60
@@ -48,12 +50,13 @@ def get_profile(conn, user: dict) -> dict[str, Any]:
         (user["id"], user["id"]),
     ).fetchone()
     created_at = conn.execute("SELECT created_at FROM users WHERE id = %s", (user["id"],)).fetchone()["created_at"]
-    row = conn.execute("SELECT display_name, preferences FROM users WHERE id = %s", (user["id"],)).fetchone()
+    row = conn.execute("SELECT display_name, preferences, email FROM users WHERE id = %s", (user["id"],)).fetchone()
     return {
         "username": user["username"],
         "is_admin": user["is_admin"],
         "display_name": row["display_name"],
         "avatar_color": avatar_color_of(row["preferences"]),
+        "email_masked": mask_email(row["email"]),
         "member_since": created_at,
         "usage": usage,
     }

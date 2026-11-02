@@ -19,6 +19,7 @@ export function CreateUserDrawer({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -27,6 +28,7 @@ export function CreateUserDrawer({
       setUsername("");
       setPassword("");
       setIsAdmin(false);
+      setEmail("");
       setError(null);
     }
   }, [open]);
@@ -38,7 +40,7 @@ export function CreateUserDrawer({
     try {
       const created = await api<UserRow>("/users", {
         method: "POST",
-        body: JSON.stringify({ username: username.trim(), password, is_admin: isAdmin }),
+        body: JSON.stringify({ username: username.trim(), password, is_admin: isAdmin, email: email.trim() || null }),
       });
       onCreated(created);
     } catch (e) {
@@ -66,6 +68,12 @@ export function CreateUserDrawer({
             required
           />
           <p className="mt-1 text-xs text-subtle">Mínimo de 8 caracteres. A pessoa pode trocá-la depois em “Minha conta”.</p>
+        </Field>
+        <Field label="E-mail (opcional)" htmlFor="new-email">
+          <Input id="new-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" maxLength={254} />
+          <p className="mt-1 text-xs text-subtle">
+            Com e-mail, a pessoa recebe um código a cada login (verificação em dois passos). Sem e-mail, entra só com a senha.
+          </p>
         </Field>
         <label className="flex items-center gap-2 text-sm">
           <input id="new-is-admin" type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} className="size-4 accent-accent" />

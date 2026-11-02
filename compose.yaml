@@ -20,11 +20,24 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET}
+      # E-mail em desenvolvimento: vai para o Mailpit (coletor local, nada sai da máquina). As variáveis
+      # SMTP_* do .env NÃO são lidas aqui de propósito (são as do servidor): assim os testes automáticos,
+      # que cadastram e-mails de mentira, nunca disparam e-mails reais pela sua conta. Para testar o envio
+      # real em desenvolvimento, defina DEV_SMTP_HOST, DEV_SMTP_PORT, DEV_SMTP_USER, DEV_SMTP_PASSWORD e
+      # DEV_SMTP_FROM no .env (e não rode a suíte de interface enquanto estiverem definidas).
+      SMTP_HOST: ${DEV_SMTP_HOST:-mailpit}
+      SMTP_PORT: ${DEV_SMTP_PORT:-1025}
+      SMTP_SECURITY: ${DEV_SMTP_SECURITY:-}
+      SMTP_USER: ${DEV_SMTP_USER:-}
+      SMTP_PASSWORD: ${DEV_SMTP_PASSWORD:-}
+      SMTP_FROM: ${DEV_SMTP_FROM:-datavision@localhost}
     depends_on:
       db:
         condition: service_healthy
       minio:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     command: >
       python -m uvicorn src.main:app
       --host 0.0.0.0
@@ -67,6 +80,14 @@ services:
       timeout: 5s
       retries: 10
 
+  # Coletor de e-mail para desenvolvimento e testes: recebe tudo e mostra numa tela. Nada é entregue de verdade.
+  # SMTP na porta 1025 (só na rede interna do Compose); tela em http://localhost:8025 (só nesta máquina).
+  mailpit:
+    image: axllent/mailpit@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
+    ports:
+      - "127.0.0.1:8025:8025"
+    restart: unless-stopped
+
   e2e:
     build:
       context: .
@@ -74,6 +95,7 @@ services:
     profiles: ["test"]
     environment:
       BASE_URL: http://app:8000
+      MAILPIT_URL: http://mailpit:8025
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     volumes:

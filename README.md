@@ -77,6 +77,8 @@ docker compose up -d
 docker compose --profile test run --rm e2e
 ```
 
+**E-mail em desenvolvimento:** o login em dois passos envia e-mails para o **Mailpit**, um coletor local que sobe junto com o Compose. Veja os códigos em `http://localhost:8025` (nada é entregue de verdade). Os testes de interface leem os códigos de lá. As variáveis `SMTP_*` do `.env` valem só no servidor; para testar um envio real em desenvolvimento use `DEV_SMTP_*` (ver `.env.example`) e não rode a suíte de interface nesse período.
+
 ## Interface nova (React) — desenvolvimento
 
 A interface nova vive em `frontend/` e abre em `http://localhost:8000/app` (é a única interface: o login em `/login` e as telas de administração em `/app/admin/...` também são dela; os endereços antigos — `/`, `/meus-datasets`, `/account` e `/admin/...` — redirecionam). O Node roda **só em container**; não precisa instalar nada no Windows.

@@ -1,6 +1,7 @@
 import { Check, Eye, EyeOff, LogOut, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
+import { EmailCard } from "@/components/account/EmailCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardSubtitle, CardTitle } from "@/components/ui/card";
@@ -61,7 +62,7 @@ function Rule({ ok, children }: { ok: boolean; children: string }) {
 
 const STRENGTH_COLORS = ["bg-danger", "bg-danger", "bg-warning", "bg-success", "bg-success"];
 
-export function SecurityTab() {
+export function SecurityTab({ emailMasked, onEmailChanged }: { emailMasked: string | null; onEmailChanged: () => void }) {
   const toast = useToast();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -150,15 +151,19 @@ export function SecurityTab() {
         </form>
       </Card>
 
-      <Card className="h-fit p-5 lg:col-span-5">
-        <CardTitle>Sessões</CardTitle>
-        <CardSubtitle>
-          Se você entrou em um computador que não é seu, ou suspeita de algo estranho, encerre todas as outras sessões. Esta continua aberta.
-        </CardSubtitle>
-        <button type="button" id="revoke-others" onClick={() => setConfirmRevoke(true)} className={cn(buttonStyles({ variant: "secondary" }), "mt-4")}>
-          <LogOut className="size-4" /> Encerrar outras sessões
-        </button>
-      </Card>
+      <div className="flex flex-col gap-4 lg:col-span-5">
+        <EmailCard emailMasked={emailMasked} onChanged={onEmailChanged} />
+
+        <Card className="h-fit p-5">
+          <CardTitle>Sessões</CardTitle>
+          <CardSubtitle>
+            Se você entrou em um computador que não é seu, ou suspeita de algo estranho, encerre todas as outras sessões. Esta continua aberta.
+          </CardSubtitle>
+          <button type="button" id="revoke-others" onClick={() => setConfirmRevoke(true)} className={cn(buttonStyles({ variant: "secondary" }), "mt-4")}>
+            <LogOut className="size-4" /> Encerrar outras sessões
+          </button>
+        </Card>
+      </div>
 
       <ConfirmDialog
         open={confirmRevoke}

@@ -29,6 +29,8 @@ Escopo: autenticação/sessão, autorização, uploads, consulta analítica, log
 
 | 11 | Média | **Sessão de 8 h sem expirar por inatividade** (2026-11-02, pedido do usuário): um computador deixado logado ficava aberto o dia todo. | Prazo de **15 min sem atividade**, contado no servidor (cookie reassinado a cada requisição da pessoa; chamadas automáticas não renovam); limite absoluto de 8 h mantido; aviso com confirmação aos 14 min e desconexão se não confirmar. Detalhes em `docs/escopo_e_roteiro.md`. |
 
+| 12 | Média | **Login só com senha** (2026-11-02, pedido do usuário): senha vazada = conta tomada. | Verificação em dois passos por e-mail para quem tem e-mail cadastrado (código de 6 dígitos em HMAC, 10 min, uso único, 5 tentativas, reenvio com pausa e teto por hora; sem sessão antes do código; falha de envio bloqueia o login). Troca do próprio e-mail exige senha atual + código ao endereço novo; o admin pode alterar sem confirmação (auditado e notificado no sistema). Detalhes em `docs/escopo_e_roteiro.md`. **Para o servidor:** o SMTP precisa funcionar (variáveis `SMTP_*` em `.env.prod`, saída na porta 587/465) — sem ele, contas com e-mail não entram; a conta de envio deve ser dedicada ao sistema, com senha de aplicativo. |
+
 ### Risco residual (não corrigido)
 
 | Prioridade | Risco | Observação / recomendação |
@@ -101,6 +103,8 @@ Nada abaixo deve ser executado antes de: (a) o inventário ser feito e revisado,
 4. Corrigir o `CLAUDE.md` (Ubuntu 26.04 em vez de 24.04, e o caminho dos documentos do servidor)? É um arquivo de regras seu, então só altero com seu OK.
 5. ~~Memória da VM: aumentar de 3 GB para 4 GB~~ — **feito em 2026-11-02 com sua aprovação** (ver seção 7). Ainda em aberto: criar swap dentro do Ubuntu?
 6. Ativar o firewall (UFW) no servidor, liberando antes o SSH só para a rede host-only? (Mudança no servidor: só com sua aprovação e no momento do deploy.)
+
+7. **E-mail de envio (login em dois passos):** conta dedicada criada pelo usuário (Gmail, com senha de aplicativo), a ser usada só no `.env.prod`. A VM precisa alcançar o SMTP do provedor (porta 587) — conferir no deploy. Plano B se o Gmail não servir: um serviço de envio com SMTP próprio (ex.: Brevo). Ainda **não** testado com envio real.
 
 ## 7. Alterações já feitas na VM (com aprovação explícita)
 

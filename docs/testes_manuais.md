@@ -39,6 +39,35 @@ curl -s -b cookies.txt http://localhost:8000/me
 - Sem `-b cookies.txt` (ou com cookie inválido/expirado) → `401`.
 - **Prazo por inatividade:** a sessão cai após 15 min sem atividade (`401` com `"Sessão encerrada por inatividade"`); cada chamada feita pela pessoa renova o prazo e devolve um `set-cookie` novo (por isso o `-c cookies.txt` nos comandos seguintes mantém a sessão viva). Chamada com o cabeçalho `X-Background-Request: 1` **não** renova nem devolve cookie. O limite absoluto de 8 h desde o login continua valendo. À mão na tela: entre, não mexa em nada por ~14 min (aparece "Você ainda está aí?"); sem clicar em "Continuar conectado" por mais 1 min, a tela volta ao login com o aviso de inatividade. Testado por `tests/test_session_idle.py` (relógio simulado) e `tests_e2e/test_session_idle.py`.
 
+## Login em dois passos (conta com e-mail) e e-mail da conta
+
+Em desenvolvimento os e-mails vão para o **Mailpit** (`http://localhost:8025`): é lá que aparece o código. Exemplos validados contra a aplicação real (códigos e nomes mudam a cada execução):
+
+```bash
+# O admin cria um usuário COM e-mail (o e-mail volta sempre mascarado)
+curl -s -b cookies.txt -X POST http://localhost:8000/users -H "Content-Type: application/json" \
+  -d '{"username":"maria","password":"senha-demo-123","email":"maria@exemplo.com"}'
+# → {"id":..., "username":"maria", ..., "email_masked":"m***@exemplo.com"}
+
+# 1ª etapa (como a pessoa): senha certa NÃO dá sessão, pede o código
+curl -s -i -c pessoa.txt -X POST http://localhost:8000/login -H "Content-Type: application/json" \
+  -d '{"username":"maria","password":"senha-demo-123"}'
+# → {"status":"2fa_required","email_hint":"m***@exemplo.com","resend_in":30} e set-cookie: pending_login=...
+curl -s -b pessoa.txt http://localhost:8000/me          # → 401 {"detail":"Não autenticado"} (ainda sem sessão)
+
+# 2ª etapa: o código de 6 dígitos que chegou ao e-mail
+curl -s -b pessoa.txt -c pessoa.txt -X POST http://localhost:8000/login/verify -H "Content-Type: application/json" -d '{"code":"123456"}'
+# → código errado: 401 {"detail":"Código incorreto. Você ainda tem 4 tentativas."}   certo: 200 {"status":"ok"}
+```
+
+- Código: 6 dígitos, vale 10 min, uso único; na 5ª tentativa errada ele é descartado e é preciso recomeçar pela senha. `POST /login/resend` (enquanto a verificação está pendente) pede outro código, no mínimo 30 s depois do anterior (`429` se cedo demais; depois de concluído o login o cookie de verificação some e a rota responde `401`). Conta **sem** e-mail continua entrando só com a senha (`{"status":"ok"}`). Se o e-mail não puder ser enviado, o login responde `503` (sem sessão).
+- **Admin altera o e-mail de outra conta** (sem confirmação; a pessoa é avisada no sistema; vazio ou `null` remove):
+  `curl -s -b cookies.txt -X PATCH http://localhost:8000/users/ID/email -H "Content-Type: application/json" -d '{"email":"novo@exemplo.com"}'` → `200` com `email_masked`. O próprio admin recebe `400` ("use Minha conta"); usuário comum `403`; e-mail inválido `400`; já usado por outra conta `409`.
+- **Aviso da pessoa:** `curl -s -b pessoa.txt http://localhost:8000/me/notifications` → `{"items":[{"message":"Um administrador alterou o seu e-mail de verificação para n***@exemplo.com.", "read":false, ...}],"unread":1}`; `curl -s -b pessoa.txt -X POST http://localhost:8000/me/notifications/read` → `204` e `unread` volta a `0`.
+- **A própria pessoa troca o e-mail:** `POST /me/email/request` com `{"email":"...","current_password":"..."}` (senha errada → `400`; certa → `200 {"email_hint":"o***@exemplo.com","resend_in":30}` e o código vai para o endereço **novo**) e depois `POST /me/email/confirm` com `{"code":"123456"}` → `200 {"email_masked":"o***@exemplo.com"}`. Só muda depois da confirmação.
+- Na tela: *Minha conta → Segurança → E-mail de verificação*; quem não tem e-mail vê um aviso flutuante para cadastrar; o item **Notificações** do menu mostra o contador.
+- Auditoria: `change_own_email` e `admin_change_email` (só endereços mascarados). Testado por `tests/test_two_factor.py` e `tests_e2e/test_two_factor.py`.
+
 ## Logout
 
 ```bash

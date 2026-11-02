@@ -6,6 +6,8 @@ export interface Me {
   is_admin: boolean;
   display_name: string | null;
   avatar_color: AvatarColor | null;
+  /** E-mail de verificação, sempre mascarado (m***@gmail.com); null = ainda não cadastrado. */
+  email_masked: string | null;
   /** Tempo sem atividade até o servidor encerrar a sessão (o navegador só avisa antes). */
   idle_timeout_seconds: number;
 }
@@ -15,6 +17,7 @@ export interface Profile {
   is_admin: boolean;
   display_name: string | null;
   avatar_color: AvatarColor | null;
+  email_masked: string | null;
   member_since: string;
   usage: { datasets: number; storage_bytes: number; profiled: number; dashboards: number };
 }
@@ -152,6 +155,7 @@ export interface UserRow {
   username: string;
   is_admin: boolean;
   is_active: boolean;
+  email_masked: string | null;
 }
 
 export interface UsersSummary {
@@ -180,4 +184,17 @@ export interface FileEntry {
   name: string;
   is_dir: boolean;
   size_bytes: number | null;
+}
+
+export interface NotificationItem {
+  id: number;
+  kind: string;
+  message: string;
+  created_at: string;
+  read: boolean;
+}
+
+export interface NotificationsData {
+  items: NotificationItem[];
+  unread: number;
 }

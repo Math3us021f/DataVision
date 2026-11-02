@@ -93,14 +93,14 @@ def test_menu_recolhe_e_lembra_a_escolha(logged_in_admin):
     expect(botao).to_have_attribute("aria-expanded", "true")
     botao.click()
     expect(botao).to_have_attribute("aria-label", "Expandir menu")
-    page.wait_for_function("document.querySelector('#sidebar').getBoundingClientRect().width < 100")
+    expect(page.locator("#sidebar")).to_have_css("width", "76px")  # a CSP proíbe wait_for_function (usa eval); expect não
 
     page.reload()  # lembra ao recarregar
     expect(page.locator("#sidebar-collapse")).to_have_attribute("aria-expanded", "false")
 
     page.locator("#sidebar-collapse").click()  # expande de volta (deixa o estado limpo)
     expect(page.locator("#sidebar-collapse")).to_have_attribute("aria-expanded", "true")
-    page.wait_for_function("document.querySelector('#sidebar').getBoundingClientRect().width > 200")
+    expect(page.locator("#sidebar")).to_have_css("width", "256px")
 
 
 def test_tema_alterna_persiste_e_vale_na_interface_atual(logged_in_admin):

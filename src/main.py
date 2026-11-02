@@ -17,19 +17,22 @@ from src.core.auth import (
 )
 from src.core.db import get_connection
 from src.core.logging_config import logger, setup_logging
-from src.core.rate_limit import is_locked_out, register_failed_attempt, reset_attempts
+from src.core.login_flow import complete_login, rate_limit_key as _rate_limit_key, record_login, set_pending_cookie
+from src.core.rate_limit import is_locked_out, register_failed_attempt
 from src.routers.api.account import router as account_router
 from src.routers.api.analytics import router as analytics_router
 from src.routers.api.audit import router as audit_router
 from src.routers.api.dashboard import router as dashboard_router
 from src.routers.api.datasets import router as datasets_router
 from src.routers.api.files import router as files_router
+from src.routers.api.login_2fa import router as login_2fa_router, send_login_code
 from src.routers.api.logs import router as logs_router
 from src.routers.api.metrics import router as metrics_router
 from src.routers.api.users import router as users_router
 from src.routers.web.web import router as web_router
 from src.core.storage import ensure_bucket
-from src.services.account import avatar_color_of, record_login_event
+from src.services.account import avatar_color_of
+from src.services.verification import RESEND_COOLDOWN_SECONDS, mask_email
 
 
 def init_db() -> None:
@@ -160,6 +163,40 @@ def init_db() -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS login_events_user_idx ON login_events (user_id, id DESC)")
+        # E-mail de verificação (opcional). Único sem diferenciar maiúsculas: dois cadastros não dividem o mesmo e-mail.
+        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (lower(email)) WHERE email IS NOT NULL")
+        # Código pendente por usuário e finalidade ('login' ou 'email_change'). Só o HMAC do código é guardado.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS email_codes (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+                purpose TEXT NOT NULL,
+                code_hash TEXT NOT NULL,
+                new_email TEXT,
+                expires_at TIMESTAMPTZ NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                last_sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                window_started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                sends_in_window INTEGER NOT NULL DEFAULT 1,
+                UNIQUE (user_id, purpose)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS notifications (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+                kind TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                read_at TIMESTAMPTZ
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications (user_id, id DESC)")
         row = conn.execute("SELECT COUNT(*) AS total FROM users").fetchone()
         if row["total"] == 0:
             admin_username = os.environ["ADMIN_USERNAME"]
@@ -218,6 +255,7 @@ async def add_security_headers(request: Request, call_next):
         response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
     return response
 
+app.include_router(login_2fa_router)
 app.include_router(users_router)
 app.include_router(metrics_router)
 app.include_router(logs_router)
@@ -239,20 +277,16 @@ def health_check() -> dict[str, str]:
     }
 
 
-def _record_login(user_id: int, success: bool, request: Request) -> None:
-    with get_connection() as conn:
-        record_login_event(conn, user_id, success, request.headers.get("user-agent"))
-        conn.commit()
-
-
 class LoginRequest(BaseModel):
     username: str
     password: str
 
 
 @app.post("/login")
-def login(credentials: LoginRequest, request: Request, response: Response) -> dict[str, str]:
-    rate_limit_key = (request.client.host if request.client else "desconhecido", credentials.username)
+def login(credentials: LoginRequest, request: Request, response: Response) -> dict:
+    """Primeira etapa. Quem não tem e-mail cadastrado entra só com a senha; quem tem recebe um código
+    por e-mail e conclui em POST /login/verify (ainda sem sessão até lá)."""
+    rate_limit_key = _rate_limit_key(request, credentials.username)
 
     if is_locked_out(rate_limit_key):
         logger.warning("Login bloqueado por excesso de tentativas: username=%r", credentials.username)
@@ -263,7 +297,7 @@ def login(credentials: LoginRequest, request: Request, response: Response) -> di
 
     with get_connection() as conn:
         user = conn.execute(
-            "SELECT id, password_hash, is_active, session_version FROM users WHERE username = %s",
+            "SELECT id, username, password_hash, is_active, session_version, email FROM users WHERE username = %s",
             (credentials.username,),
         ).fetchone()
 
@@ -279,23 +313,29 @@ def login(credentials: LoginRequest, request: Request, response: Response) -> di
 
     if not password_ok:
         if user is not None:
-            _record_login(user["id"], False, request)
+            record_login(user["id"], False, request)
         register_failed_attempt(rate_limit_key)
         logger.warning("Login falhou para username=%r", credentials.username)
         raise credenciais_invalidas
 
     if not user["is_active"]:
         # Mesma mensagem genérica do caso de senha errada: não revelamos que a conta existe, mas está desativada.
-        _record_login(user["id"], False, request)
+        record_login(user["id"], False, request)
         register_failed_attempt(rate_limit_key)
         logger.warning("Login negado (conta inativa) para username=%r", credentials.username)
         raise credenciais_invalidas
 
-    reset_attempts(rate_limit_key)
-    _record_login(user["id"], True, request)
-    logger.info("Login bem-sucedido: user_id=%s username=%r", user["id"], credentials.username)
-    token = create_session_token(user["id"], user["session_version"])
-    set_session_cookie(response, token)
+    if user["email"]:
+        # Senha certa, mas ainda não há sessão: falta o código enviado ao e-mail da conta.
+        sent_now = send_login_code(user)
+        set_pending_cookie(response, user["id"], user["session_version"])
+        return {
+            "status": "2fa_required",
+            "email_hint": mask_email(user["email"]),
+            "resend_in": RESEND_COOLDOWN_SECONDS if sent_now else 0,
+        }
+
+    complete_login(response, request, user)
     return {"status": "ok"}
 
 
@@ -312,6 +352,8 @@ def me(current_user: dict = Depends(get_current_user)) -> dict:
         "is_admin": current_user["is_admin"],
         "display_name": current_user["display_name"],
         "avatar_color": avatar_color_of(current_user["preferences"]),
+        # Sempre mascarado; null = sem e-mail cadastrado (a interface lembra a pessoa de cadastrar um).
+        "email_masked": mask_email(current_user["email"]),
         # O navegador usa este valor para avisar antes de a sessão cair; quem encerra de verdade é o servidor.
         "idle_timeout_seconds": SESSION_IDLE_TIMEOUT_SECONDS,
     }

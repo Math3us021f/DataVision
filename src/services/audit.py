@@ -9,6 +9,8 @@ KNOWN_ACTIONS = [
     "reset_password",
     "change_own_password",
     "revoke_other_sessions",
+    "change_own_email",
+    "admin_change_email",
 ]
 
 

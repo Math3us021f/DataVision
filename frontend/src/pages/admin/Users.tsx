@@ -1,6 +1,7 @@
-import { KeyRound, Plus, Power, ShieldCheck, Trash2, UserCheck, UserX, Users as UsersIcon, type LucideIcon } from "lucide-react";
+import { KeyRound, Mail, Plus, Power, ShieldCheck, Trash2, UserCheck, UserX, Users as UsersIcon, type LucideIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { AdminEmailDialog } from "@/components/admin/AdminEmailDialog";
 import { AdminPage, EmptyState, ErrorPanel } from "@/components/admin/AdminPage";
 import { CreateUserDrawer } from "@/components/admin/CreateUserDrawer";
 import { Pagination } from "@/components/admin/Pagination";
@@ -63,6 +64,7 @@ export default function Users({ me }: { me: Me }) {
   const [selected, setSelected] = useState<Map<number, UserRow>>(new Map());
   const [creating, setCreating] = useState(false);
   const [resetting, setResetting] = useState<UserRow | null>(null);
+  const [emailTarget, setEmailTarget] = useState<UserRow | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
 
   const summary = useApi<UsersSummary>("/users/summary");
@@ -395,7 +397,10 @@ export default function Users({ me }: { me: Me }) {
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-3">
                           <UserAvatar name={user.username} color={null} />
-                          <span className="font-medium">{user.username}</span>
+                          <span className="flex min-w-0 flex-col leading-tight">
+                            <span className="font-medium">{user.username}</span>
+                            <span data-email className="text-xs text-subtle">{user.email_masked ?? "sem e-mail"}</span>
+                          </span>
                           {isMe && <Badge>você</Badge>}
                         </div>
                       </td>
@@ -407,6 +412,7 @@ export default function Users({ me }: { me: Me }) {
                           <span className="block text-right text-muted">—</span>
                         ) : (
                           <div className="flex items-center justify-end gap-0.5">
+                            <RowButton label={`E-mail de ${user.username}`} icon={Mail} onClick={() => setEmailTarget(user)} />
                             <RowButton label={`Redefinir senha de ${user.username}`} icon={KeyRound} onClick={() => setResetting(user)} />
                             {user.is_active ? (
                               <RowButton label={`Desativar ${user.username}`} icon={Power} onClick={() => askDeactivate(user)} />
@@ -440,6 +446,15 @@ export default function Users({ me }: { me: Me }) {
         onCreated={(user) => {
           setCreating(false);
           toast(`Usuário "${user.username}" criado.`);
+          refresh();
+        }}
+      />
+      <AdminEmailDialog
+        user={emailTarget}
+        onClose={() => setEmailTarget(null)}
+        onDone={(user, updated) => {
+          setEmailTarget(null);
+          toast(updated.email_masked ? `E-mail de "${user.username}" atualizado.` : `E-mail de "${user.username}" removido.`);
           refresh();
         }}
       />

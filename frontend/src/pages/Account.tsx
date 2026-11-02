@@ -57,7 +57,7 @@ export default function Account({ me, onSaved }: { me: Me; onSaved: () => void }
 
       <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
         {active === "perfil" && <ProfileTab onSaved={onSaved} />}
-        {active === "seguranca" && <SecurityTab />}
+        {active === "seguranca" && <SecurityTab emailMasked={me.email_masked} onEmailChanged={onSaved} />}
         {active === "atividade" && <ActivityTab />}
       </div>
     </main>

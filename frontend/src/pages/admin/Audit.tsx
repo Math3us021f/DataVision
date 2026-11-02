@@ -21,6 +21,8 @@ const ACTION_LABELS: Record<string, string> = {
   reset_password: "Redefinição de senha (admin)",
   change_own_password: "Troca da própria senha",
   revoke_other_sessions: "Encerramento de outras sessões",
+  change_own_email: "Troca do próprio e-mail",
+  admin_change_email: "E-mail alterado por administrador",
 };
 
 export default function Audit() {

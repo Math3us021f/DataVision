@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 
+import { EmailReminder } from "@/components/EmailReminder";
 import { IdleGuard } from "@/components/IdleGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,6 +44,7 @@ export default function App() {
     <BrowserRouter basename="/app">
       <AppShell me={me.data}>
         {me.data && <IdleGuard idleSeconds={me.data.idle_timeout_seconds} />}
+        {me.data && me.data.email_masked === null && <EmailReminder />}
         {me.data ? (
           <Routes>
             <Route path="/" element={<Home me={me.data} />} />
