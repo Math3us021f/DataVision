@@ -1,6 +1,6 @@
 # Etapa 12 — Validação do MVP e planejamento de deploy
 
-> Estado em 2026-11-02. A parte **local** (revisão de segurança, persistência, testes) está feita. A parte do **servidor Ubuntu** ainda é só planejamento: nada foi inspecionado nem alterado lá. O inventário (somente leitura) está em [inventario_ubuntu.md](inventario_ubuntu.md) e depende de você executá-lo.
+> Estado em 2026-11-02. A parte **local** (revisão de segurança, persistência, testes) está feita e o **inventário somente leitura do servidor foi executado** (resultados na seção 3.1; roteiro em [inventario_ubuntu.md](inventario_ubuntu.md)). Nada foi alterado no servidor. O plano de deploy (seção 5) continua em rascunho, **não aprovado**.
 
 ## 1. Resultado da validação local
 
@@ -39,8 +39,28 @@ Escopo: autenticação/sessão, autorização, uploads, consulta analítica, log
 ## 3. Divergências entre documentos (para você decidir)
 
 - `CLAUDE.md` diz que os documentos do Ubuntu estão em `D:\VMs\Code\docs`; essa pasta **não existe** — eles estão em `DataVision/docs/` (ignorados pelo Git).
-- A documentação do servidor cita **Ubuntu 24.04** em um ponto e **26.04** em outro: confirmar a versão real no inventário.
-- `CLAUDE.md` pede inventário do MinIO *existente*; a documentação o descreve com imagem `:latest` (sem digest), usuário **root** do MinIO e portas publicadas em todas as interfaces. O estado real precisa ser confirmado.
+- A documentação do servidor cita **Ubuntu 24.04** em um ponto e **26.04** em outro. **Resolvido pelo inventário: o servidor é Ubuntu 26.04.1 LTS** (kernel 7.0). O `CLAUDE.md` ainda diz 24.04 e precisa ser corrigido.
+- `CLAUDE.md` pede inventário do MinIO *existente*: ver seção 3.1 (confirmado: imagem `:latest`, portas em todas as interfaces).
+
+## 3.1 Resultado do inventário somente leitura (2026-11-02)
+
+| Item | Observado | Avaliação |
+|---|---|---|
+| Sistema | Ubuntu 26.04.1 LTS, relógio sincronizado (UTC), `unattended-upgrades` ativo, nenhuma atualização pendente | OK |
+| Recursos da VM | 2 vCPU, 3072 MB configurados (2,6 GiB visíveis, ~2,1 GiB livres), **sem swap**; disco 147 GB com 133 GB livres | **Memória apertada** para app + Postgres + MinIO + consultas Pandas: sem swap, um pico vira OOM-kill |
+| Portas em escuta | só `22` (SSH), `9000` e `9001` (MinIO), todas em `0.0.0.0` e `[::]` | MinIO exposto em todas as interfaces da VM |
+| Firewall (UFW) | **inativo** | Sem barreira local; hoje o isolamento vem só da topologia de rede |
+| Rede da VM | adaptador host-only (comunicação com o Windows) + NAT, **sem regras de redirecionamento de porta** no NAT; 3º a 8º adaptadores desligados | Bom: nada do servidor é alcançável de fora da máquina física |
+| SSH | nenhuma diretiva em `sshd_config`/`sshd_config.d` (valores padrão) | Provável login por senha ativo (padrão); **confirmar** com `sudo sshd -T` |
+| Docker | 29.9.2, daemon em modo normal (não rootless), só `daemon.json` com DNS, **nenhum volume nomeado**, só a rede padrão | OK |
+| MinIO | imagem `cgr.dev/chainguard/minio:latest` (sem tag fixa; digest atual anotado abaixo), versão 2026-09-22, usuário **65532 (não root)**, sem `privileged`, `restart=always`, dados em bind mount no home, saúde OK, log sem segredos | Imagem sem versão fixa; resto bom |
+| Dados no MinIO | diretório com **~104 KB** (só metadados internos do MinIO) | **Não há dados reais a preservar** — risco de convivência é baixo |
+| Backups / agendamentos | **sem `crontab`**, nenhum timer de backup (só os do sistema) | Não há backup nenhum hoje |
+| Snapshots da VM | **nenhum** | Precisa existir um antes do deploy (reversão) |
+
+Digest da imagem do MinIO em uso: `sha256:d88920d6a50bd0b088223b688be3b76c63e6205dbe494437f67ba1240ea12880`.
+
+**Consequências para o plano:** (1) como o MinIO existente está praticamente vazio, a opção mais simples e segura é manter o container como está e criar *bucket e usuário novos* para a aplicação; (2) a memória é o gargalo real — aumentar a VM para 4 GB e/ou criar swap, e definir limites de memória nos containers; (3) ativar o UFW é uma mudança de risco (pode trancar o SSH) e só deve ser feita com regra de SSH liberada antes e com aprovação; (4) criar o snapshot e o primeiro backup antes de qualquer mudança.
 
 ## 4. Pontos de atenção da documentação local do servidor (hipóteses a confirmar no inventário)
 
@@ -71,4 +91,6 @@ Nada abaixo deve ser executado antes de: (a) o inventário ser feito e revisado,
 1. **HTTPS**: o painel será acessado só por esta máquina (host-only) ou por outros dispositivos da LAN? O `CLAUDE.md` pede avaliar HTTPS antes de login a partir de outros dispositivos.
 2. **Como a aplicação alcança o MinIO existente** (IP do host? rede Docker própria?) e se aceita-se criar bucket/usuário novos nele.
 3. **Retenção de backup** (quantos, onde, com que frequência).
-4. Confirmar a versão do Ubuntu (24.04 × 26.04).
+4. Corrigir o `CLAUDE.md` (Ubuntu 26.04 em vez de 24.04, e o caminho dos documentos do servidor)? É um arquivo de regras seu, então só altero com seu OK.
+5. Memória da VM: aumentar de 3 GB para 4 GB (precisa desligar a VM) e/ou criar swap?
+6. Ativar o firewall (UFW) no servidor, liberando antes o SSH só para a rede host-only? (Mudança no servidor: só com sua aprovação e no momento do deploy.)
