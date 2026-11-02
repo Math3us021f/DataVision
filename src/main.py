@@ -126,6 +126,20 @@ def init_db() -> None:
             )
             """
         )
+        # Um dashboard salvo por dataset (UNIQUE). ON DELETE CASCADE: apagar o dataset (ou o usuário,
+        # que apaga os datasets antes) leva o dashboard junto, sem DELETE manual extra.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dashboards (
+                id SERIAL PRIMARY KEY,
+                dataset_id INTEGER NOT NULL UNIQUE REFERENCES datasets (id) ON DELETE CASCADE,
+                owner_user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+                spec JSONB NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
         row = conn.execute("SELECT COUNT(*) AS total FROM users").fetchone()
         if row["total"] == 0:
             admin_username = os.environ["ADMIN_USERNAME"]

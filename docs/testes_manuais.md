@@ -195,6 +195,22 @@ curl -s -b cookies.txt -X POST http://localhost:8000/datasets/1/query \
 - Dataset sem perfil → `409`. Coluna inexistente ou agregação incompatível (ex: `sum` em texto) → `422` com a explicação. Chave desconhecida no JSON → `422`. Dataset de outro usuário → `404`. Sem login → `401`.
 - Colunas de data só são reconhecidas em datasets **perfilados depois** desta mudança — reperfile datasets antigos. Formato `dd/mm/aaaa` é lido com dia primeiro; `aaaa-mm-dd` é lido como ISO.
 
+## Dashboard salvo (dono do dataset)
+
+```bash
+# salvar (substitui o anterior)
+curl -s -b cookies.txt -X PUT http://localhost:8000/datasets/1/dashboard \
+  -H "Content-Type: application/json" \
+  -d '{"widgets":[{"chart":"kpi","metrics":[{"column":"valor","agg":"mean"}]}],"filters":[{"column":"valor","op":"gte","value":10}]}'
+
+curl -s -b cookies.txt http://localhost:8000/datasets/1/dashboard          # ler (null se não houver)
+curl -s -b cookies.txt -X DELETE http://localhost:8000/datasets/1/dashboard -w "%{http_code}\n"   # 204
+```
+
+- `PUT` devolve o que foi salvo mais `updated_at`. Cada widget é uma spec do `/query`; os `filters` valem para todos eles.
+- Coluna inexistente, agregação incompatível ou filtro inválido → `422` e **nada é gravado**. Dataset sem perfil → `409`. Mais de 12 widgets ou chave desconhecida → `422`. Dataset de outro usuário → `404`. Sem login → `401`.
+- Apagar o dataset apaga o dashboard salvo junto.
+
 ## Painel padrão sugerido (dono do dataset)
 
 ```bash
@@ -253,7 +269,7 @@ curl -s -b cookies.txt "http://localhost:8000/datasets/ID_DO_DATASET/profile"
 - `http://localhost:8000/login` — tela de login. Senha errada mostra a mensagem de erro na própria tela.
 - `http://localhost:8000/` — home com painel de resumo. Sem sessão, redireciona para o login. Admin vê cartões de usuários/CPU/memória e a atividade administrativa; usuário comum vê só os próprios datasets.
 - `GET /dashboard/summary` — confira que a resposta para um usuário comum (`curl -s -b cookies.txt http://localhost:8000/dashboard/summary`) não tem a chave `"admin"` em nenhuma hipótese.
-- `http://localhost:8000/meus-datasets/{id}/dashboard` — dashboard do dataset (troque `{id}` por um dataset **seu e já perfilado**; ainda não há botão na lista de datasets). Deve mostrar KPIs e gráficos gerados automaticamente. Teste: abrir "Personalizar" num gráfico e trocar tipo/coluna/agregação; adicionar um filtro global e ver todos os números mudarem. Dataset de outro usuário ou sem perfil mostra mensagem de erro em vez de gráficos. As mudanças somem ao recarregar (salvar ainda não existe).
+- `http://localhost:8000/meus-datasets/{id}/dashboard` — dashboard do dataset (troque `{id}` por um dataset **seu e já perfilado**; ainda não há botão na lista de datasets). Deve mostrar KPIs e gráficos gerados automaticamente. Teste: abrir "Personalizar" num gráfico e trocar tipo/coluna/agregação; adicionar um filtro global e ver todos os números mudarem. Dataset de outro usuário ou sem perfil mostra mensagem de erro em vez de gráficos. "Salvar dashboard" guarda gráficos e filtros; ao recarregar, a tela mostra "Dashboard salvo em …". "Restaurar painel padrão" apaga o salvo.
 - `http://localhost:8000/admin/users` — gestão de usuários (só admin). Usuário comum é redirecionado para a home.
 - `http://localhost:8000/admin/metrics` — métricas (só admin). O horário "Atualizado às" deve mudar a cada ~5 segundos com a aba aberta.
 - `http://localhost:8000/admin/files` — explorador de arquivos (só admin). Clique numa pasta para entrar, use o breadcrumb para voltar. Abrir `exemplo.env` deve mostrar "Tipo de arquivo não permitido".

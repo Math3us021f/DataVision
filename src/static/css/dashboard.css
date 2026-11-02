@@ -28,6 +28,19 @@
     margin: 16px 0;
 }
 
+.dashboard-actions {
+    align-items: center;
+}
+
+.dashboard-actions__status {
+    font-size: 0.85rem;
+    margin-left: 4px;
+}
+
+.dashboard-actions__status.is-dirty {
+    color: var(--warning);
+}
+
 .widgets-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));

@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -46,6 +47,20 @@ class QuerySpec(_Strict):
         if self.chart == "pie" and len(self.metrics) != 1:
             raise ValueError("pie: exatamente 1 métrica")
         return self
+
+
+MAX_DASHBOARD_WIDGETS = 12
+
+
+class DashboardSpec(_Strict):
+    """O que é salvo: os gráficos (cada um uma QuerySpec) e os filtros globais da tela."""
+
+    widgets: list[QuerySpec] = Field(max_length=MAX_DASHBOARD_WIDGETS)
+    filters: list[FilterSpec] = Field(default_factory=list, max_length=10)
+
+
+class DashboardOut(DashboardSpec):
+    updated_at: datetime
 
 
 class WidgetSuggestion(BaseModel):

@@ -30,8 +30,26 @@ const filtersCard = document.getElementById("filters-card");
 const filtersList = document.getElementById("filters-list");
 const actionsBar = document.getElementById("dashboard-actions");
 
-const state = { columns: [], widgets: [], filters: [] };
+const MAX_WIDGETS = 12; // mesmo limite do servidor
+const state = { columns: [], widgets: [], filters: [], loading: false, dirty: false };
+const saveStatus = document.getElementById("save-status");
 let nextId = 1;
+
+function setStatus(text, dirty = false) {
+    saveStatus.textContent = text;
+    saveStatus.classList.toggle("is-dirty", dirty);
+}
+
+// Só conta como alteração do usuário o que acontece fora do carregamento inicial.
+function markDirty() {
+    if (state.loading) return;
+    state.dirty = true;
+    setStatus("Alterações não salvas", true);
+}
+
+function formatDateTime(iso) {
+    return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
 
 function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -273,6 +291,7 @@ function createWidget(spec) {
         };
         refreshVisibility();
         widget.title.textContent = autoTitle(widget.config);
+        markDirty();
         scheduleRun(widget);
     }
     controls.addEventListener("change", onControlChange);
@@ -283,6 +302,7 @@ function createWidget(spec) {
         if (widget.chart) widget.chart.dispose();
         card.remove();
         state.widgets = state.widgets.filter((w) => w !== widget);
+        markDirty();
     });
 
     card.append(head, widget.body, widget.error, widget.meta, settings);
@@ -305,6 +325,16 @@ function clearWidgets() {
 }
 
 // ---------- Filtros globais ----------
+
+function clearFilters() {
+    state.filters = [];
+    filtersList.replaceChildren();
+}
+
+// Valor salvo (número, texto, lista, booleano) -> texto do campo, como o usuário digitaria.
+function rawFromValue(value) {
+    return Array.isArray(value) ? value.join(", ") : String(value);
+}
 
 function filterToSpec(filter) {
     const kind = filterKind(filter.column);
@@ -332,7 +362,8 @@ function buildValueInput(filter) {
     if (kind === "boolean") {
         input = el("select");
         input.append(option("true", "verdadeiro"), option("false", "falso"));
-        filter.raw = input.value = "true";
+        input.value = filter.raw === "false" ? "false" : "true";
+        filter.raw = input.value;
     } else {
         input = el("input");
         input.type = kind === "number" && filter.op !== "in" ? "number" : kind === "datetime" ? "date" : "text";
@@ -348,13 +379,19 @@ function buildValueInput(filter) {
 let filterTimer = null;
 function onFilterEdited(filter, raw) {
     filter.raw = raw;
+    markDirty();
     clearTimeout(filterTimer);
     filterTimer = setTimeout(runAll, FILTER_DEBOUNCE_MS);
 }
 
-function addFilter() {
+function addFilter(initial = {}) {
     if (state.columns.length === 0) return;
-    const filter = { id: nextId++, column: state.columns[0].column_name, op: "eq", raw: "" };
+    const filter = {
+        id: nextId++,
+        column: initial.column ?? state.columns[0].column_name,
+        op: initial.op ?? "eq",
+        raw: initial.raw ?? "",
+    };
     const row = el("div", "filter-row");
     const columnPicker = columnSelect(`f${filter.id}-col`, filter.column);
     columnPicker.setAttribute("aria-label", "Coluna do filtro");
@@ -403,22 +440,55 @@ function addFilter() {
 
 // ---------- Inicialização ----------
 
+function showEmptyIfNeeded(count, message) {
+    if (count === 0) renderState(stateBox, { kind: "empty", title: "Nenhum gráfico", message });
+    else stateBox.hidden = true;
+}
+
 async function loadSuggestions() {
     const widgets = await apiRequest(`/datasets/${DATASET_ID}/suggested-dashboard`);
-    clearWidgets();
-    for (const widget of widgets) createWidget(widget.spec);
-    if (widgets.length === 0) {
-        renderState(stateBox, {
-            kind: "empty",
-            title: "Nenhum gráfico sugerido",
-            message: "As regras automáticas não encontraram colunas adequadas. Use \"Adicionar gráfico\" para montar o seu.",
-        });
-    } else {
-        stateBox.hidden = true;
+    state.loading = true;
+    try {
+        clearWidgets();
+        for (const widget of widgets) createWidget(widget.spec);
+    } finally {
+        state.loading = false;
     }
+    state.dirty = false;
+    setStatus("Painel padrão — ainda não salvo");
+    showEmptyIfNeeded(
+        widgets.length,
+        "As regras automáticas não encontraram colunas adequadas. Use \"Adicionar gráfico\" para montar o seu.",
+    );
+}
+
+function loadSaved(saved) {
+    state.loading = true;
+    try {
+        clearFilters();
+        clearWidgets();
+        // Filtros primeiro: cada gráfico já nasce consultando com eles aplicados.
+        for (const f of saved.filters) {
+            if (state.columns.some((c) => c.column_name === f.column)) {
+                addFilter({ column: f.column, op: f.op, raw: rawFromValue(f.value) });
+            }
+        }
+        for (const spec of saved.widgets) createWidget(spec);
+    } finally {
+        state.loading = false;
+    }
+    state.dirty = false;
+    setStatus(`Dashboard salvo em ${formatDateTime(saved.updated_at)}`);
+    showEmptyIfNeeded(saved.widgets.length, "Este dashboard salvo não tem gráficos. Use \"Adicionar gráfico\".");
 }
 
 function addDefaultWidget() {
+    if (state.widgets.length >= MAX_WIDGETS) {
+        showToast(`Limite de ${MAX_WIDGETS} gráficos por dashboard.`, "error");
+        return;
+    }
+    stateBox.hidden = true;
+    markDirty();
     const dimension = defaultDimension();
     const measure = state.columns.find((c) => NUMERIC.has(c.inferred_type));
     createWidget({
@@ -441,7 +511,9 @@ async function init() {
         }
         filtersCard.hidden = false;
         actionsBar.hidden = false;
-        await loadSuggestions();
+        const saved = await apiRequest(`/datasets/${DATASET_ID}/dashboard`);
+        if (saved) loadSaved(saved);
+        else await loadSuggestions();
     } catch (err) {
         document.getElementById("dataset-name").textContent = `Dataset ${DATASET_ID}`;
         renderState(stateBox, {
@@ -454,16 +526,40 @@ async function init() {
     }
 }
 
-document.getElementById("add-filter").addEventListener("click", addFilter);
+document.getElementById("add-filter").addEventListener("click", () => addFilter());
 document.getElementById("add-widget").addEventListener("click", addDefaultWidget);
+
+document.getElementById("save-dashboard").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+        const saved = await apiRequest(`/datasets/${DATASET_ID}/dashboard`, {
+            method: "PUT",
+            body: JSON.stringify({
+                widgets: state.widgets.map((w) => specFromConfig(w.config)),
+                filters: globalFiltersSpec(),
+            }),
+        });
+        state.dirty = false;
+        setStatus(`Salvo em ${formatDateTime(saved.updated_at)}`);
+        showToast("Dashboard salvo.", "success");
+    } catch (err) {
+        showToast(err.message, "error");
+    } finally {
+        button.disabled = false;
+    }
+});
+
 document.getElementById("reset-dashboard").addEventListener("click", async () => {
     const confirmed = await confirmAction({
         title: "Restaurar painel padrão?",
-        message: "Os gráficos atuais (inclusive os que você personalizou) serão substituídos pelos sugeridos. Os filtros globais continuam.",
+        message: "Seus gráficos e filtros atuais, e a versão salva (se houver), serão descartados e o painel volta ao que foi gerado automaticamente.",
         confirmLabel: "Restaurar",
     });
     if (!confirmed) return;
     try {
+        await apiRequest(`/datasets/${DATASET_ID}/dashboard`, { method: "DELETE" });
+        clearFilters();
         await loadSuggestions();
         showToast("Painel padrão restaurado.", "success");
     } catch (err) {
