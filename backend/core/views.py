@@ -3,6 +3,7 @@ da API, que valida permissões em cada rota. O roteamento interno (/app/...) é 
 
 from django.conf import settings
 from django.http import FileResponse, HttpRequest, HttpResponse, HttpResponseRedirect
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 
 def _react_shell() -> HttpResponse:
@@ -16,12 +17,14 @@ def _react_shell() -> HttpResponse:
     return FileResponse(open(index, "rb"), content_type="text/html")
 
 
+@ensure_csrf_cookie  # a tela de login recebe o cookie csrftoken, que o React devolve em X-CSRFToken
 def login_page(request: HttpRequest) -> HttpResponse:
     if request.user.is_authenticated:
         return HttpResponseRedirect("/app")
     return _react_shell()
 
 
+@ensure_csrf_cookie
 def app_shell(request: HttpRequest, path: str = "") -> HttpResponse:
     if not request.user.is_authenticated:
         return HttpResponseRedirect("/login")

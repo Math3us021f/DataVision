@@ -36,6 +36,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.session_policy.SessionPolicyMiddleware",  # inatividade, limite de 8 h e versão da sessão
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.ContentSecurityPolicyMiddleware",
 ]
@@ -83,7 +84,10 @@ SESSION_COOKIE_NAME = "session"  # o mesmo nome do FastAPI: o React e os testes 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
-SESSION_COOKIE_AGE = 60 * 60 * 8  # limite absoluto de 8 h; a inatividade (15 min) vem num middleware próprio
+SESSION_COOKIE_AGE = 60 * 60 * 8  # limite absoluto de 8 h desde o login, mesmo com atividade
+# Sem nenhuma atividade da pessoa por este tempo, a sessão deixa de valer (ver accounts/session_policy.py). O
+# navegador lê este valor em GET /me para avisar antes; quem encerra de verdade é o servidor.
+SESSION_IDLE_TIMEOUT_SECONDS = 15 * 60
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 CSRF_COOKIE_SAMESITE = "Lax"
 # O React lê o cookie csrftoken e devolve o valor no cabeçalho X-CSRFToken (por isso não é HttpOnly).

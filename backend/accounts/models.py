@@ -1,6 +1,8 @@
+from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils.crypto import salted_hmac
 
 
 class UserManager(BaseUserManager):
@@ -63,6 +65,12 @@ class User(AbstractBaseUser):
 
     def has_module_perms(self, app_label) -> bool:
         return self.is_active and self.is_admin
+
+    def get_session_auth_hash(self) -> str:
+        """Por padrão o Django derruba as sessões quando a SENHA muda (comparando um hash dela guardado na sessão).
+        Aqui quem manda é a `session_version` (a política de sessão a confere e dá a mensagem certa: "Sessão
+        encerrada"), então este hash é fixo e não deixa o Django derrubar a sessão por conta própria."""
+        return salted_hmac("accounts.User.session_hash", "v1", secret=settings.SECRET_KEY, algorithm="sha256").hexdigest()
 
 
 class LoginEvent(models.Model):
