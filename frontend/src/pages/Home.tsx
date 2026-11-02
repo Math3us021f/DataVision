@@ -21,6 +21,7 @@ import type { ReactNode } from "react";
 
 import { StatusDonut } from "@/components/charts/StatusDonut";
 import { UploadsChart } from "@/components/charts/UploadsChart";
+import { SmartLink } from "@/components/SmartLink";
 import { Stat } from "@/components/Stat";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardHeader, CardSubtitle, CardTitle } from "@/components/ui/card";
@@ -118,9 +119,9 @@ export default function Home({ me }: { me: Me }) {
           >
             <RefreshCw className={cn("size-4", summary.loading && "animate-spin")} />
           </button>
-          <a href="/meus-datasets" className={buttonStyles({ variant: "primary" })}>
+          <SmartLink href="/app/datasets" className={buttonStyles({ variant: "primary" })}>
             <Upload className="size-4" /> Enviar dataset
-          </a>
+          </SmartLink>
         </div>
       </header>
 
@@ -134,7 +135,7 @@ export default function Home({ me }: { me: Me }) {
                 id="stat-datasets"
                 label="Datasets enviados"
                 icon={Files}
-                href="/meus-datasets"
+                href="/app/datasets"
                 loading={loading}
                 value={mine?.datasets ?? null}
                 format={(n) => formatNumber(Math.round(n))}
@@ -234,9 +235,9 @@ export default function Home({ me }: { me: Me }) {
                 <CardSubtitle className="short:hidden">perfilados vs. pendentes</CardSubtitle>
               </div>
               {pending > 0 && (
-                <a href="/meus-datasets" className={buttonStyles({ variant: "secondary", size: "sm" })}>
+                <SmartLink href="/app/datasets" className={buttonStyles({ variant: "secondary", size: "sm" })}>
                   Perfilar pendentes
-                </a>
+                </SmartLink>
               )}
             </CardHeader>
             {loading || !mine ? (
@@ -269,9 +270,9 @@ export default function Home({ me }: { me: Me }) {
           >
             <CardHeader>
               <CardTitle>Últimos envios</CardTitle>
-              <a href="/meus-datasets" className="text-xs font-medium text-muted underline-offset-4 hover:text-accent hover:underline">
+              <SmartLink href="/app/datasets" className="text-xs font-medium text-muted underline-offset-4 hover:text-accent hover:underline">
                 Ver todos
-              </a>
+              </SmartLink>
             </CardHeader>
             <ul id="recent-datasets" className="scroll-thin -mx-1 mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto px-1">
               {loading && <ListSkeleton />}

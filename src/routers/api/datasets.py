@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, UploadFile, status
 from pydantic import BaseModel
 
@@ -23,6 +25,9 @@ class DatasetOut(BaseModel):
     original_name: str
     format: str
     size_bytes: int
+    # Só a listagem preenche estes dois; a resposta do upload não os traz.
+    created_at: datetime | None = None
+    profiled: bool = False
 
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=DatasetOut)

@@ -3,6 +3,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/hooks/useApi";
+import { ToastProvider } from "@/components/ui/toast";
+import Datasets from "@/pages/Datasets";
 import Home from "@/pages/Home";
 import type { Me } from "@/types";
 
@@ -24,11 +26,13 @@ export default function App() {
   const me = useApi<Me>("/me");
 
   return (
+    <ToastProvider>
     <BrowserRouter basename="/app">
       <AppShell me={me.data}>
         {me.data ? (
           <Routes>
             <Route path="/" element={<Home me={me.data} />} />
+            <Route path="/datasets" element={<Datasets />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         ) : (
@@ -39,5 +43,6 @@ export default function App() {
         )}
       </AppShell>
     </BrowserRouter>
+    </ToastProvider>
   );
 }

@@ -32,7 +32,7 @@ interface Item {
 
 const MAIN: Item[] = [
   { label: "Início", icon: House, href: "/", internal: true },
-  { label: "Datasets", icon: FileText, href: "/meus-datasets" },
+  { label: "Datasets", icon: FileText, href: "/datasets", internal: true },
   { label: "Minha conta", icon: KeyRound, href: "/account" },
 ];
 

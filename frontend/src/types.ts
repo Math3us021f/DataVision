@@ -35,6 +35,46 @@ export interface Summary {
   };
 }
 
+export interface Dataset {
+  id: number;
+  original_name: string;
+  format: string;
+  size_bytes: number;
+  created_at: string | null;
+  profiled: boolean;
+}
+
+export interface TopValue {
+  value: string;
+  count: number;
+}
+
+export interface ColumnProfile {
+  column_name: string;
+  inferred_type: string;
+  null_count: number;
+  distinct_count: number;
+  min_value: number | null;
+  max_value: number | null;
+  mean_value: number | null;
+  median_value: number | null;
+  top_values: TopValue[] | null;
+  histogram: { bin_edges: number[]; counts: number[] } | null;
+}
+
+export interface DatasetProfile {
+  row_count: number;
+  duplicate_row_count: number;
+  columns: ColumnProfile[];
+}
+
+export interface DatasetSample {
+  columns: string[];
+  rows: (string | null)[][];
+  total_rows: number;
+  sample_size: number;
+}
+
 export interface SystemMetrics {
   cpu_percent: number;
   memory: { total_bytes: number; used_bytes: number; percent: number };

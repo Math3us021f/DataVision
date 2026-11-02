@@ -106,10 +106,11 @@ def delete_dataset_core(conn, dataset_id: int, object_key: str) -> None:
 def list_datasets_for_user(conn, user_id: int) -> list[dict]:
     return conn.execute(
         """
-        SELECT id, original_name, format, size_bytes
-        FROM datasets
-        WHERE owner_user_id = %s
-        ORDER BY id DESC
+        SELECT d.id, d.original_name, d.format, d.size_bytes, d.created_at,
+               EXISTS (SELECT 1 FROM dataset_profiles p WHERE p.dataset_id = d.id) AS profiled
+        FROM datasets d
+        WHERE d.owner_user_id = %s
+        ORDER BY d.id DESC
         """,
         (user_id,),
     ).fetchall()

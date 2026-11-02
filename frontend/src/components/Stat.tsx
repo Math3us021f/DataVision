@@ -1,6 +1,7 @@
 import { ArrowUpRight, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { SmartLink } from "@/components/SmartLink";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCountUp } from "@/hooks/useCountUp";
@@ -60,9 +61,9 @@ export function Stat({
   const classes = cn("group relative flex items-center gap-3 p-3.5", className);
   if (href) {
     return (
-      <a href={href} className="block rounded-card focus-visible:outline-2 focus-visible:outline-accent">
+      <SmartLink href={href} className="block min-w-0 rounded-card focus-visible:outline-2 focus-visible:outline-accent">
         <Card className={cn(classes, "transition-all hover:-translate-y-px hover:border-accent/60")}>{body}</Card>
-      </a>
+      </SmartLink>
     );
   }
   return <Card className={classes}>{body}</Card>;

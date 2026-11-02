@@ -94,3 +94,16 @@ def test_anonimo_nao_pode_fazer_upload(client):
 def test_anonimo_nao_pode_listar(client):
     response = client.get("/datasets")
     assert response.status_code == 401
+
+
+def test_listagem_traz_data_de_envio_e_se_ja_foi_perfilado(logged_client):
+    dataset_id = upload(logged_client, "lista.csv", b"a,b\n1,2\n").json()["id"]
+
+    antes = next(d for d in logged_client.get("/datasets").json() if d["id"] == dataset_id)
+    assert antes["profiled"] is False
+    assert antes["created_at"]
+
+    logged_client.post(f"/datasets/{dataset_id}/profile")
+
+    depois = next(d for d in logged_client.get("/datasets").json() if d["id"] == dataset_id)
+    assert depois["profiled"] is True

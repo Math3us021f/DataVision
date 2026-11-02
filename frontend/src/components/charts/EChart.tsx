@@ -1,4 +1,4 @@
-import { LineChart, PieChart } from "echarts/charts";
+import { BarChart, LineChart, PieChart } from "echarts/charts";
 import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import type { EChartsCoreOption } from "echarts/core";
@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTheme } from "@/hooks/useTheme";
 
 // Só o que a Home usa entra no pacote (em vez do ECharts inteiro).
-echarts.use([LineChart, PieChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
+echarts.use([BarChart, LineChart, PieChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
 
 export { echarts };
 export type { EChartsCoreOption };

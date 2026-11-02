@@ -106,3 +106,14 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
