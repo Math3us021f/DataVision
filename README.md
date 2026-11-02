@@ -79,6 +79,10 @@ docker compose --profile test run --rm e2e
 
 **E-mail:** o login em dois passos envia um código por e-mail. Sem `SMTP_*` no `.env`, tudo vai para o **Mailpit**, um coletor local que sobe junto com o Compose (códigos em `http://localhost:8025`; nada é entregue de verdade). Com `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` definidos (ver `.env.example`), endereços **reais** recebem o e-mail de verdade; endereços de mentira (`exemplo.com`, `example.com`, `.test` etc., usados pelos testes) continuam indo só para o Mailpit, então a suíte de interface pode rodar com o envio real ativo. Depois de mudar o `.env`: `docker compose up -d app`.
 
+## Backend Django (migração em andamento)
+
+O backend está sendo migrado do FastAPI para Django (plano em `docs/migracao_django.md`). O novo backend fica em `backend/` e roda ao lado do atual: `docker compose up -d django` abre `http://localhost:8001`; testes com `docker compose exec -T django python -m pytest -q`. O FastAPI (`:8000`) continua sendo o que a interface usa até a troca.
+
 ## Interface nova (React) — desenvolvimento
 
 A interface nova vive em `frontend/` e abre em `http://localhost:8000/app` (é a única interface: o login em `/login` e as telas de administração em `/app/admin/...` também são dela; os endereços antigos — `/`, `/meus-datasets`, `/account` e `/admin/...` — redirecionam). O Node roda **só em container**; não precisa instalar nada no Windows.

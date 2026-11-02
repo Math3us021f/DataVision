@@ -14,3 +14,11 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     ALTER DATABASE "$POSTGRES_DB" OWNER TO "$APP_DB_USER";
     ALTER SCHEMA public OWNER TO "$APP_DB_USER";
 EOSQL
+
+# Banco do backend Django (migração em andamento), separado do atual: as duas aplicações convivem até a troca.
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+    -c "CREATE DATABASE datavision_dj OWNER \"$APP_DB_USER\""
+# Banco só dos testes do Django: o usuário da aplicação não pode criar bancos (de propósito), então o banco de
+# teste é criado aqui e os testes o reaproveitam (pytest --reuse-db).
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+    -c "CREATE DATABASE datavision_dj_test OWNER \"$APP_DB_USER\""

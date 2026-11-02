@@ -81,6 +81,27 @@ services:
       timeout: 5s
       retries: 10
 
+  # Backend Django em construção (migração do FastAPI). Convive com o `app` atual: porta 8001, banco próprio
+  # (datavision_dj). Quando a migração terminar, ele assume a porta 8000 e o `app` sai.
+  django:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8001:8000"
+    init: true
+    volumes:
+      - ./backend:/app
+      - ./src/static/app:/app/static_src/app:ro  # interface React gerada (serviço frontend)
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DJANGO_DATABASE_URL: postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${DJANGO_DB_NAME:-datavision_dj}
+      LOG_DIR: /app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8000
+
   # Coletor de e-mail para desenvolvimento e testes: recebe tudo e mostra numa tela. Nada é entregue de verdade.
   # SMTP na porta 1025 (só na rede interna do Compose); tela em http://localhost:8025 (só nesta máquina).
   mailpit:
