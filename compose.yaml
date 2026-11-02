@@ -12,7 +12,6 @@ services:
     volumes:
       - ./backend:/app
       - ./data:/app/data  # explorador de arquivos
-      - ./docs:/docs:ro  # contrato congelado do FastAPI (backend/scripts/contract_diff.py)
     environment:
       SECRET_KEY: ${SECRET_KEY}
       DJANGO_DATABASE_URL: postgresql://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${DJANGO_DB_NAME:-datavision_dj}

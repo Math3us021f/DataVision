@@ -246,12 +246,7 @@ Etapa 12 em andamento: inventário feito; decidir os pontos abertos do relatóri
 
 ## Pendências técnicas menores
 
-- `TestClient`/`starlette` avisam que `httpx` está depreciado em favor de `httpx2` — trocar quando a migração for simples, não é urgente.
-- Aviso de permissão ao criar cache do pytest (`/app/.pytest_cache`) dentro do container — inofensivo (diretório de cache, não afeta resultado dos testes), mas pode ser limpo depois ajustando dono do diretório.
-- Sessão não tem `Secure` no cookie ainda (não há HTTPS em dev) — revisar antes de qualquer exposição além de localhost.
-- `src/core/db.py` abre uma conexão nova por requisição, sem connection pool — não é falha de segurança, pode virar gargalo de performance se o uso crescer.
-- Adoção do Alembic para versionar o schema do Postgres foi avaliada e adiada deliberadamente (ver decisão de 2026-11-01) — `init_db()` em `src/main.py` continua com `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` inline.
-- CSRF mitigado por `SameSite=Lax` no cookie de sessão, mas sem token CSRF explícito — revisar quando houver frontend HTML de verdade (Etapa 2 em diante do roteiro original previa HTML/JS simples).
+- Sessão não tem `Secure` no cookie ainda (não há HTTPS em dev) — ligar `SESSION_COOKIE_SECURE=true` antes de qualquer exposição além de localhost (isso também liga o cabeçalho `Cross-Origin-Opener-Policy`).
 - Não existe edição de `username`/`is_admin` depois que o usuário é criado (troca e redefinição de senha já existem).
 - O usuário Postgres `datavision_app` (antigo dono das tabelas, ainda superusuário) permanece no banco, usado só para manutenção manual — documentar isso para quem for inspecionar o banco no futuro não se confundir com o usuário da aplicação.
 - `db-init/01-create-app-role.sh` automatiza a criação do usuário limitado **só em volumes novos** (mecanismo padrão do Postgres). No volume atual do projeto, a mudança já foi aplicada manualmente via `psql` — o script existe para reprodutibilidade futura (outro dev, outra máquina, ou um reset intencional do volume), testado isoladamente num ambiente descartável antes de ser confiado.

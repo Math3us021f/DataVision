@@ -1,6 +1,6 @@
 # Migração do backend para Django
 
-> Iniciada em 2026-11-02, a pedido do usuário ("vamos ter mais controle do que o FastAPI"). O FastAPI continua funcionando em `src/` (porta 8000) até o Django alcançar a **paridade**: mesma API, mesmas respostas, mesmos testes. O React continua sendo só a interface e quase não muda.
+> **Concluída em 2026-11-02**, a pedido do usuário ("vamos ter mais controle do que o FastAPI"). O Django é o backend único (serviço `app`, porta 8000); o FastAPI foi removido. Este documento fica como **registro das decisões** e dos aprendizados da migração. A estratégia foi alcançar **paridade** (mesma API, mesmas respostas) etapa por etapa, com o Django rodando ao lado do FastAPI até a troca final. O React é só a interface.
 
 ## Decisões
 
@@ -10,7 +10,7 @@
 | API | **Django Ninja** (não Django REST Framework) | Reaproveita os esquemas Pydantic atuais (`src/schemas/analytics.py`) e o estilo com tipos do FastAPI; menos código. As rotas ficam **na raiz** (`/health`, `/me`, `/users`...), iguais às de hoje. |
 | Dados | **ORM** nos cadastros e consultas simples; SQL direto só onde for agregação complexa | Migrações versionadas no lugar do `init_db()` com `ALTER TABLE IF NOT EXISTS`. |
 | Usuário | **Modelo próprio** (`accounts.User`) desde o começo: `username`, `email` (opcional, único sem diferenciar maiúsculas), `display_name`, `preferences`, `is_admin`, `is_active` | Trocar o modelo depois, com dados, é muito difícil. `is_staff`/`is_superuser` = `is_admin`. |
-| Sessão | Sessões no banco, cookie **`session`** (mesmo nome), HttpOnly, SameSite=Lax, 8 h absolutas; inatividade de 15 min em middleware próprio (a fazer) | O React e os testes não percebem a troca. |
+| Sessão | Sessões no banco, cookie **`session`** (mesmo nome), HttpOnly, SameSite=Lax, 8 h absolutas; inatividade de 15 min em middleware próprio | O React e os testes não percebem a troca. |
 | CSRF | Ligado (cookie `csrftoken` legível pelo React, devolvido em `X-CSRFToken`) | O Django exige; é a única mudança prevista no React. |
 | Servidor | **gunicorn com 1 processo e 8 threads** (produção) e `runserver` (desenvolvimento) | O Django sob ASGI executa views síncronas numa única thread compartilhada, o que serializaria as consultas pesadas; com threads elas rodam em paralelo. Um processo só porque o limite de tentativas de login e o de consultas vivem na memória. |
 | Estáticos | **WhiteNoise** entrega o build do React em `/static/app/` | Sem nginx por enquanto. |
@@ -21,7 +21,7 @@
 
 ## Contrato congelado
 
-`docs/contrato_api_fastapi.json` é o OpenAPI do FastAPI de hoje (42 caminhos, 49 operações). O Django precisa responder igual. Para regenerar: `docker compose exec -T app python -c "import json; from src.main import app; print(json.dumps(app.openapi(), ensure_ascii=False, indent=2, sort_keys=True))"`.
+Durante a migração, o OpenAPI do FastAPI (42 caminhos, 49 operações) foi congelado num arquivo (`docs/contrato_api_fastapi.json`) e uma ferramenta (`backend/scripts/contract_diff.py`) comparava a API do Django com ele, rota por rota e campo por campo. Ambos foram **removidos ao final** (a migração terminou e o FastAPI não existe mais para regenerá-los); a prova de paridade que ficou são os 85 testes de comportamento herdados em `backend/tests/contract/`.
 
 ## Etapas
 
@@ -94,7 +94,7 @@ Rotas: `GET /login` (a tela), `POST /login`, `POST /login/verify`, `POST /login/
 6. A exclusão forçada apaga os arquivos no MinIO **dentro** da transação do banco: se algo falhar depois, o arquivo já se foi (igual ao FastAPI). Falha do MinIO não trava a exclusão (fica um objeto órfão, com aviso no log).
 7. Mudar a senha ou encerrar as outras sessões grava a `session_version` nova **na sessão atual** (`request.session["v"]`), que continua válida; as demais caem.
 
-**Ferramenta de contrato:** `docker compose exec -T django python manage.py shell < backend/scripts/contract_diff.py` compara a API do Django com o contrato congelado (rotas migradas, rotas que faltam, rotas sobrando e campos das respostas). No fim da etapa 6: 24 de 49 migradas, nenhuma sobrando; as duas "diferenças" (`/me`, `/users/summary`) são melhorias (o FastAPI não declarava o formato dessas respostas). Faltam os datasets, a consulta e o painel (etapas 7 e 8), métricas, logs, arquivos e o resumo (etapa 9) e os redirecionamentos das páginas antigas (etapa 10).
+**Ferramenta de contrato (removida ao final):** durante a migração, `backend/scripts/contract_diff.py` comparava a API do Django com o contrato congelado (rotas migradas, rotas que faltam, rotas sobrando e campos das respostas). No fim da etapa 6: 24 de 49 migradas, nenhuma sobrando; as duas "diferenças" (`/me`, `/users/summary`) eram melhorias (o FastAPI não declarava o formato dessas respostas).
 
 ## Datasets (etapa 7)
 
@@ -140,7 +140,7 @@ Rotas: `GET /login` (a tela), `POST /login`, `POST /login/verify`, `POST /login/
 5. `ALLOWED_HOSTS` precisa conter o nome pelo qual a aplicação é acessada (`app` na rede do Compose, o IP da VM em produção); o padrão do desenvolvimento já inclui `app`.
 6. O Playwright (`wait_for_function`) e a CSP não combinam (eval proibido): os testes usam `expect`.
 
-**Pendências conhecidas:** testar o envio de e-mail real e o MinIO do servidor (ver etapa 12); `CLAUDE.md` (arquivo de regras do usuário) ainda descreve a arquitetura como FastAPI/SQLite e precisa de um ajuste pontual com o OK do usuário; `backend/scripts/contract_diff.py` e `docs/contrato_api_fastapi.json` ficam como registro histórico do contrato original.
+**Pendências conhecidas:** testar o envio de e-mail real e o MinIO do servidor (ver etapa 12). O `CLAUDE.md` foi atualizado para Django/React, e os artefatos do contrato (`contract_diff.py`, `contrato_api_fastapi.json`) foram removidos na higienização pós-migração.
 
 ## Comportamentos a reproduzir (paridade)
 
