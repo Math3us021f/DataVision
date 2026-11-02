@@ -161,6 +161,24 @@ def test_meus_datasets_nao_mostra_links_de_admin_para_usuario_comum(non_admin_cl
     assert 'href="/admin/users"' not in html
 
 
+def test_admin_audit_para_admin_renderiza(admin_client):
+    response = admin_client.get("/admin/audit")
+    assert response.status_code == 200
+    assert 'id="audit-table-body"' in response.text
+
+
+def test_admin_audit_para_nao_admin_redireciona_para_home(non_admin_client):
+    response = non_admin_client.get("/admin/audit")
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/"
+
+
+def test_admin_audit_sem_sessao_redireciona_para_login(client):
+    response = client.get("/admin/audit")
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/login"
+
+
 def test_admin_index_redireciona_para_usuarios(admin_client):
     response = admin_client.get("/admin")
     assert response.status_code in (302, 307)

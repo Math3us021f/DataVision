@@ -121,10 +121,16 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
   - Biblioteca nova: **Chart.js 4.4.4**, via CDN (`cdn.jsdelivr.net`, sem build step). A versão pinada em `cdnjs.cloudflare.com` que tentei primeiro não existe mais lá (só a 4.6.1 está disponível) — troquei para jsdelivr, que mantém versões antigas.
   - **Bug real encontrado e corrigido:** o canvas do gráfico ficou com 8302px de altura (devia ter 160px) porque ele estava solto dentro de um painel com rolagem, sem um elemento-pai de tamanho fixo — o Chart.js "responsivo" mede o ancestral mais próximo com altura definida, e sem um `wrapper` dedicado ele pegou a altura do scroll inteiro. Corrigido com uma `div` wrapper com `height: 160px` fixo envolvendo cada canvas.
   - Testado com números exatos: 20 valores (idades 20–39) em 10 faixas iguais deram exatamente 2 por barra; texto com SP=10/RJ=6/MG=2/BA=2 bateu nos dois gráficos (CSS e Chart.js, lado a lado). 2 testes novos no backend (128 no total) — a renderização em si não tem teste automatizado, só verificação manual no navegador, como o resto do frontend.
+- Concluído em 2026-11-01: **Etapa 4 do plano de interface — tela de auditoria (`/admin/audit`).**
+  - Backend: `GET /audit-logs` (busca por `actor_username`/`target_username`, filtro por `action`, paginado) e `GET /audit-logs/actions` (lista de ações conhecidas, para popular o filtro). Lógica de consulta isolada em `src/services/audit.py` (padrão já usado por `users`/`datasets` — ver reorganização de 2026-11-01).
+  - Tela: busca, filtro por ação (com rótulos em português) e paginação, seguindo o mesmo padrão visual de `/admin/users`. Só leitura — nenhuma ação é feita a partir desta tela.
+  - Mostra ações administrativas sobre contas (`create_user`, `activate_user`, `deactivate_user`, `delete_user`, `force_delete_user_datasets`, `reset_password`, `change_own_password`). Eventos de login continuam só em `/admin/logs` (decisão da Etapa 6 original, não duplicada aqui).
+  - Testado: 11 testes novos de API (busca, filtro, paginação, 401/403) e 3 de renderização da página (139 no total). Verificado visualmente no navegador com um admin temporário criado só para o teste (removido em seguida) — busca e filtro de ação confirmados funcionando contra os ~3400 registros de auditoria já acumulados no banco de dev.
+  - Pendente do plano de interface: Etapa 5 (testes Playwright).
 
 ## Próximo passo recomendado
 
-Reorganização estrutural de `src/` (ver decisão de 2026-11-01) concluída e validada (128 testes passando em cada fase). Retomar o plano de interface: página de auditoria (Etapa 4 do plano de interface) e testes Playwright (Etapa 5), ou avançar para a Etapa 12 do roteiro original (validação do MVP + inspeção do Ubuntu Server, somente leitura).
+Etapa 4 do plano de interface (página de auditoria) concluída (139 testes passando). Falta a Etapa 5 (testes de interface com Playwright), ou avançar direto para a Etapa 12 do roteiro original (validação do MVP + inspeção do Ubuntu Server, somente leitura).
 
 ## Pendências técnicas menores
 

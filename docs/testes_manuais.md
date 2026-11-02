@@ -179,6 +179,17 @@ curl -s -b cookies.txt "http://localhost:8000/logs/app?limit=20"
 - Sem estar logado → `401`. Logado mas não-admin → `403`.
 - Eventos registrados hoje: aplicação iniciada, login bem-sucedido/falho/negado (conta inativa), criação de usuário, ativação/desativação de usuário.
 
+## Auditoria (só admin)
+
+```bash
+curl -s -b cookies.txt "http://localhost:8000/audit-logs?search=admin&page_size=2"
+```
+
+- Esperado: `{"items": [...], "total": N, "page": 1, "page_size": 2}`, cada item com `action`, `details`, `created_at`, `actor_username` (quem fez) e `target_username` (quem sofreu a ação) — qualquer um dos dois pode vir `null` se o usuário correspondente já foi excluído.
+- `search` busca tanto em `actor_username` quanto em `target_username` (ILIKE, com `%`/`_` escapados). `action` filtra por uma ação exata (ver lista em `GET /audit-logs/actions`). `page`/`page_size` paginam (`page_size` máx. 100).
+- Sem estar logado → `401`. Logado mas não-admin → `403`.
+- Eventos registrados hoje: `create_user`, `activate_user`, `deactivate_user`, `delete_user`, `force_delete_user_datasets`, `reset_password`, `change_own_password`. Eventos de login (sucesso/falha) ficam no log da aplicação (`GET /logs/app`), não aqui — esta tabela é só para ações administrativas sobre contas.
+
 ## Upload de datasets (qualquer usuário logado, não só admin)
 
 ```bash

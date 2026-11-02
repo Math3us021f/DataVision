@@ -36,6 +36,7 @@
                 ("metrics", "/admin/metrics", "Métricas", "chart"),
                 ("logs", "/admin/logs", "Logs", "logs"),
                 ("files", "/admin/files", "Arquivos", "folder"),
+                ("audit", "/admin/audit", "Auditoria", "shield"),
             ] %}
             <a href="{{ href }}" class="sidebar__link {% if active == key %}is-active{% endif %}" {% if active == key %}aria-current="page"{% endif %}>{{ icon(ic) }} {{ label }}</a>
             {% endfor %}

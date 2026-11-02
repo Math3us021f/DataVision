@@ -71,3 +71,8 @@ def admin_logs_page(request: Request, user: dict | None = Depends(get_current_us
 @router.get("/admin/files")
 def admin_files_page(request: Request, user: dict | None = Depends(get_current_user_optional)):
     return _admin_page(request, user, "admin/files.html")
+
+
+@router.get("/admin/audit")
+def admin_audit_page(request: Request, user: dict | None = Depends(get_current_user_optional)):
+    return _admin_page(request, user, "admin/audit.html")
