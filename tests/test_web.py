@@ -179,6 +179,27 @@ def test_admin_audit_sem_sessao_redireciona_para_login(client):
     assert response.headers["location"] == "/login"
 
 
+def test_dashboard_sem_sessao_redireciona_para_login(client):
+    response = client.get("/meus-datasets/1/dashboard")
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "/login"
+
+
+def test_dashboard_renderiza_para_usuario_comum_com_id_do_dataset(non_admin_client):
+    response = non_admin_client.get("/meus-datasets/42/dashboard")
+    assert response.status_code == 200
+    assert 'id="widgets"' in response.text
+    assert "window.DATASET_ID = 42" in response.text
+    assert "/static/vendor/echarts/echarts.min.js" in response.text
+
+
+def test_echarts_vendorizado_e_servido_localmente(client):
+    # O MVP roda na LAN: o ECharts não pode depender de CDN externa.
+    response = client.get("/static/vendor/echarts/echarts.min.js")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(("text/javascript", "application/javascript"))
+
+
 def test_admin_index_redireciona_para_usuarios(admin_client):
     response = admin_client.get("/admin")
     assert response.status_code in (302, 307)

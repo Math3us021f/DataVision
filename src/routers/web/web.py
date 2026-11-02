@@ -29,6 +29,14 @@ def datasets_page(request: Request, user: dict | None = Depends(get_current_user
     return templates.TemplateResponse(request, "datasets.html", {"user": user})
 
 
+@router.get("/meus-datasets/{dataset_id}/dashboard")
+def dataset_dashboard_page(dataset_id: int, request: Request, user: dict | None = Depends(get_current_user_optional)):
+    # A página é só a casca: quem decide se o dataset é do usuário é a API (404 para dataset alheio).
+    if user is None:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(request, "dashboard.html", {"user": user, "dataset_id": dataset_id})
+
+
 @router.get("/account")
 def account_page(request: Request, user: dict | None = Depends(get_current_user_optional)):
     if user is None:

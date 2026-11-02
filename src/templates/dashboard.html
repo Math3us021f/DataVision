@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% from "_icons.html" import icon %}
+{% set active = "datasets" %}
+{% set page_title = "Dashboard" %}
+{% set breadcrumb = ["Datasets", "Dashboard"] %}
+
+{% block title %}Dashboard — DataVision{% endblock %}
+
+{% block head %}<link rel="stylesheet" href="/static/css/dashboard.css">{% endblock %}
+
+{% block page_subtitle %}<span id="dataset-name">Carregando…</span> — painel gerado automaticamente a partir do perfil. Personalize cada gráfico; as mudanças valem só nesta tela por enquanto (salvar chega depois).{% endblock %}
+
+{% block page_actions %}
+<a class="button button--secondary" href="/meus-datasets">Voltar aos datasets</a>
+{% endblock %}
+
+{% block content %}
+<section class="card card--wide" id="filters-card" hidden>
+    <div class="filters__head">
+        <div>
+            <h2 class="card__title">Filtros globais</h2>
+            <div class="card__subtitle">Valem para todos os gráficos abaixo.</div>
+        </div>
+        <button type="button" class="button--secondary button--small" id="add-filter">{{ icon("plus") }} Adicionar filtro</button>
+    </div>
+    <div id="filters-list" class="filters__list"></div>
+</section>
+
+<div class="dashboard-actions" id="dashboard-actions" hidden>
+    <button type="button" class="button--secondary button--small" id="add-widget">{{ icon("plus") }} Adicionar gráfico</button>
+    <button type="button" class="button--secondary button--small" id="reset-dashboard">{{ icon("refresh") }} Restaurar painel padrão</button>
+</div>
+
+<div id="dashboard-state" hidden></div>
+<div id="widgets" class="widgets-grid"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.DATASET_ID = {{ dataset_id | tojson }};</script>
+<script src="/static/vendor/echarts/echarts.min.js"></script>
+<script src="/static/js/charts/echarts_adapter.js"></script>
+<script src="/static/js/charts/dashboard_builder.js"></script>
+{% endblock %}
