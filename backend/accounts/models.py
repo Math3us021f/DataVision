@@ -29,7 +29,9 @@ class User(AbstractBaseUser):
     preferences = models.JSONField("preferências", default=dict, blank=True)
     is_admin = models.BooleanField("administrador", default=False)
     is_active = models.BooleanField("ativo", default=True)
-    date_joined = models.DateTimeField("criado em", auto_now_add=True)
+    # Sobe quando a senha é trocada ou a pessoa encerra as outras sessões: cookies com a versão antiga deixam de valer.
+    session_version = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField("criado em", auto_now_add=True)
 
     objects = UserManager()
 
@@ -61,3 +63,51 @@ class User(AbstractBaseUser):
 
     def has_module_perms(self, app_label) -> bool:
         return self.is_active and self.is_admin
+
+
+class LoginEvent(models.Model):
+    """Acessos recentes de cada usuário (a tela "Atividade"). De propósito NÃO guarda IP nem o texto do
+    navegador: só a data, o resultado e um resumo ("Chrome · Windows")."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="login_events")
+    success = models.BooleanField()
+    browser = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "-id"], name="login_events_user_idx")]
+
+
+class EmailCode(models.Model):
+    """Código de verificação pendente (login em dois passos ou troca de e-mail). Guarda só o HMAC do código."""
+
+    class Purpose(models.TextChoices):
+        LOGIN = "login", "Login"
+        EMAIL_CHANGE = "email_change", "Troca de e-mail"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="email_codes")
+    purpose = models.CharField(max_length=20, choices=Purpose.choices)
+    code_hash = models.CharField(max_length=64)
+    new_email = models.EmailField(max_length=254, null=True, blank=True)  # só na troca de e-mail
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveIntegerField(default=0)
+    last_sent_at = models.DateTimeField(auto_now_add=True)
+    window_started_at = models.DateTimeField(auto_now_add=True)
+    sends_in_window = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        # Um código pendente por usuário e finalidade: pedir outro substitui o anterior.
+        constraints = [models.UniqueConstraint(fields=["user", "purpose"], name="email_codes_user_purpose_unique")]
+
+
+class Notification(models.Model):
+    """Aviso dentro do sistema, para a própria pessoa (ex.: "um administrador alterou o seu e-mail")."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    kind = models.CharField(max_length=50)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "-id"], name="notifications_user_idx")]

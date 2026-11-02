@@ -24,6 +24,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "ninja",  # a documentação interativa (/docs, só fora de produção) usa os modelos dele
     "accounts",
+    "audit",
+    "datasets",
     "core",
 ]
 

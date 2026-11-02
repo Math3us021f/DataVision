@@ -30,13 +30,31 @@
 | 1 | Congelar o contrato da API atual | **feito** |
 | 2 | Esqueleto: projeto, settings por variáveis de ambiente, Docker, Postgres, logs com rotação, `/health`, `/docs` só fora de produção | **feito** |
 | 3 | Casca do React (`/login`, `/app/...`), `/static/app/`, CSP e cabeçalhos de segurança | **feito** |
-| 4 | Modelos e migrações das demais tabelas (datasets, perfil, colunas, dashboards, auditoria, acessos, códigos de e-mail, notificações) | a fazer |
+| 4 | Modelos e migrações das demais tabelas (datasets, perfil, colunas, dashboards, auditoria, acessos, códigos de e-mail, notificações) | **feito** |
 | 5 | Login, logout, `/me`, sessão com inatividade, limite de tentativas, dois passos por e-mail | a fazer |
 | 6 | Usuários, auditoria, conta (perfil, senha, e-mail, sessões) e notificações | a fazer |
 | 7 | Datasets: upload, MinIO, perfilamento, amostra | a fazer |
 | 8 | Consultas, dashboards salvos e painel padrão (o motor de análise é reaproveitado) | a fazer |
 | 9 | Métricas, logs, explorador de arquivos, resumo do painel | a fazer |
 | 10 | Troca: React com CSRF, suíte Playwright inteira contra o Django, Django na porta 8000, remoção do FastAPI, Dockerfile e `compose.prod.yaml` | a fazer |
+
+## Modelos (etapa 4)
+
+Três apps, um por assunto: `accounts` (`User`, `LoginEvent`, `EmailCode`, `Notification`), `audit` (`AuditLog`) e `datasets` (`Dataset`, `DatasetProfile`, `DatasetColumn`, `DatasetColumnTopValue`, `Dashboard`). As tabelas do banco novo têm o prefixo do app (`accounts_user`, `datasets_dataset`...).
+
+| Regra | Como ficou no Django |
+|---|---|
+| Excluir usuário que tem datasets | `Dataset.owner` com `on_delete=PROTECT` (antes: chave estrangeira sem `ON DELETE`); a exclusão forçada apaga os datasets antes, pelo código, e depois a conta |
+| Apagar um dataset | `CASCADE` leva perfil, colunas, valores frequentes e dashboard (antes: o código apagava tudo à mão, linha por linha) |
+| Auditoria ao excluir um usuário | `SET_NULL` em `actor` e `target`: o registro e o texto em `details` permanecem |
+| Acessos, códigos de e-mail e notificações | `CASCADE` com o usuário |
+| Um código pendente por usuário e finalidade | restrição única `(user, purpose)` |
+| Um perfil e um dashboard por dataset | `OneToOneField` |
+| Números não negativos | `PositiveIntegerField` (o Postgres recusa com `CHECK`) |
+| Ações de auditoria | `AuditLog.Action` (`TextChoices`), as mesmas 10 do FastAPI |
+| `session_version` | continua no usuário (senha trocada ou "encerrar outras sessões" invalidam cookies antigos) |
+
+Observações: (1) o `CASCADE` e o `SET_NULL` são executados pelo ORM em Python, **não** viram `ON DELETE` no SQL — por isso apagar deve ser sempre por `.delete()` do ORM; (2) `accounts_user` tem a coluna extra `last_login` (vem do modelo base do Django); (3) a migração `0001` do usuário já estava commitada, então os ajustes (`date_joined` → `created_at`, `session_version`) entraram na `0002`: **migração já aplicada não se reescreve**. O esquema novo foi comparado coluna por coluna com o antigo: as 10 tabelas são equivalentes (só `last_login` a mais).
 
 ## Comportamentos a reproduzir (paridade)
 
