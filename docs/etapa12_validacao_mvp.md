@@ -92,5 +92,18 @@ Nada abaixo deve ser executado antes de: (a) o inventário ser feito e revisado,
 2. **Como a aplicação alcança o MinIO existente** (IP do host? rede Docker própria?) e se aceita-se criar bucket/usuário novos nele.
 3. **Retenção de backup** (quantos, onde, com que frequência).
 4. Corrigir o `CLAUDE.md` (Ubuntu 26.04 em vez de 24.04, e o caminho dos documentos do servidor)? É um arquivo de regras seu, então só altero com seu OK.
-5. Memória da VM: aumentar de 3 GB para 4 GB (precisa desligar a VM) e/ou criar swap?
+5. ~~Memória da VM: aumentar de 3 GB para 4 GB~~ — **feito em 2026-11-02 com sua aprovação** (ver seção 7). Ainda em aberto: criar swap dentro do Ubuntu?
 6. Ativar o firewall (UFW) no servidor, liberando antes o SSH só para a rede host-only? (Mudança no servidor: só com sua aprovação e no momento do deploy.)
+
+## 7. Alterações já feitas na VM (com aprovação explícita)
+
+Única mudança feita até aqui, em 2026-11-02, na **configuração da VM** (nada dentro do Ubuntu foi alterado):
+
+1. Desligamento limpo pelo botão ACPI (20 s, sem forçar).
+2. **Snapshot `base-limpa-antes-do-deploy`**, com a VM desligada: estado limpo (só o MinIO) e 3 GB de RAM. É o ponto de retorno para o deploy e para esta própria mudança.
+3. Memória aumentada de 3072 para **4096 MB** (`VBoxManage modifyvm --memory 4096`); 2 vCPU mantidas.
+4. VM religada em modo headless. Verificado: SSH respondendo e MinIO saudável (HTTP 200) cerca de 80 s após o boot, sem nenhuma intervenção — `restart=always` e o Docker habilitado no boot funcionam.
+
+**Reverter esta mudança:** desligar a VM e restaurar o snapshot (`VBoxManage snapshot "<vm>" restore base-limpa-antes-do-deploy`), ou só voltar a memória com `VBoxManage modifyvm "<vm>" --memory 3072`.
+
+**Atenção no Windows:** a máquina tem ~16 GB e estava com ~2,3 GB livres antes do aumento; o Docker Desktop (WSL2) também consome bastante. Se o Windows ficar lento com a VM, o ganho de memória do servidor não compensa — nesse caso reduzir o WSL2 ou usar swap no Ubuntu em vez de mais RAM.
