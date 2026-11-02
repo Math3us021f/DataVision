@@ -274,7 +274,7 @@ def test_falha_no_envio_bloqueia_o_login_sem_vazar_sessao_nem_deixar_codigo(admi
 
 def test_sem_smtp_configurado_o_login_com_email_tambem_e_bloqueado(admin, monkeypatch):
     username, _ = make_user(admin, unique_email())
-    for nome in ("SMTP_HOST", "SMTP_FROM"):
+    for nome in ("SMTP_HOST", "SMTP_FROM", "MAIL_SINK_HOST"):
         monkeypatch.delenv(nome, raising=False)
     _, resposta = first_step(username)
     assert resposta.status_code == 503
@@ -538,6 +538,7 @@ def smtp_env(monkeypatch):
     FakeSMTP.instances = []
     monkeypatch.setattr(mailer.smtplib, "SMTP", FakeSMTP)
     monkeypatch.setattr(mailer.smtplib, "SMTP_SSL", FakeSMTP)
+    monkeypatch.delenv("MAIL_SINK_HOST", raising=False)  # estes testes são do provedor real; o coletor tem testes à parte
     for nome, valor in {"SMTP_HOST": "smtp.exemplo.com", "SMTP_PORT": "587", "SMTP_SECURITY": "starttls",
                         "SMTP_USER": "sistema@exemplo.com", "SMTP_PASSWORD": "segredo", "SMTP_FROM": "sistema@exemplo.com"}.items():
         monkeypatch.setenv(nome, valor)
@@ -579,3 +580,42 @@ def test_seguranca_do_envio_sem_smtp_security_vem_da_porta(smtp_env, monkeypatch
     monkeypatch.setenv("SMTP_USER", "u")
     mailer.send_email("alguem@exemplo.com", "A", "B")
     assert FakeSMTP.instances[0].calls == esperado  # só a 587 faz STARTTLS (a 465 já nasce em SSL; a 1025 é o coletor local)
+
+
+# ---------- coletor de segurança: endereços de mentira nunca vão para o provedor real ----------
+
+
+@pytest.fixture
+def com_coletor(smtp_env, monkeypatch):
+    monkeypatch.setenv("MAIL_SINK_HOST", "mailpit")
+    monkeypatch.setenv("MAIL_SINK_PORT", "1025")
+
+
+@pytest.mark.parametrize("endereco", ["a@exemplo.com", "A@EXEMPLO.COM", "x@example.com", "x@example.org", "x@algo.test", "x@qualquer.invalid", "x@host.localhost"])
+def test_endereco_de_mentira_vai_para_o_coletor_sem_tls_nem_login(com_coletor, endereco):
+    mailer.send_email(endereco, "A", "B")
+    smtp = FakeSMTP.instances[0]
+    assert (smtp.host, smtp.port) == ("mailpit", 1025)
+    assert smtp.calls == ["send"]  # sem STARTTLS e sem login: a senha do provedor nunca vai para o coletor
+
+
+@pytest.mark.parametrize("endereco", ["maria@gmail.com", "pessoa@empresa.com.br", "a@exemplo.com.br", "a@meuexemplo.com"])
+def test_endereco_real_continua_indo_para_o_provedor(com_coletor, endereco):
+    mailer.send_email(endereco, "A", "B")
+    smtp = FakeSMTP.instances[0]
+    assert (smtp.host, smtp.port) == ("smtp.exemplo.com", 587)
+    assert smtp.calls == ["starttls", ("login", "sistema@exemplo.com"), "send"]
+
+
+def test_sem_coletor_configurado_nada_e_desviado(smtp_env):
+    mailer.send_email("a@exemplo.com", "A", "B")  # no servidor não há coletor: vale o provedor configurado
+    assert FakeSMTP.instances[0].host == "smtp.exemplo.com"
+
+
+def test_coletor_funciona_mesmo_sem_provedor_configurado(com_coletor, monkeypatch):
+    monkeypatch.delenv("SMTP_HOST")
+    monkeypatch.delenv("SMTP_FROM")
+    mailer.send_email("a@exemplo.com", "A", "B")
+    assert FakeSMTP.instances[0].host == "mailpit"
+    with pytest.raises(mailer.MailNotConfiguredError):  # já o endereço real, sem provedor, não tem para onde ir
+        mailer.send_email("real@gmail.com", "A", "B")

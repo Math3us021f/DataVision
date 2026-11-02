@@ -1,7 +1,7 @@
 """Verificação em dois passos por e-mail, no navegador, lendo os códigos no Mailpit (coletor local do Compose).
 
-Atenção: estes testes precisam que a aplicação envie para o Mailpit. Se o `.env` tiver SMTP_HOST de um
-provedor de verdade (para testar o envio real), remova-o antes de rodar a suíte de interface.
+Os testes cadastram endereços de mentira (exemplo.com), que o Compose de desenvolvimento sempre desvia para o
+Mailpit (MAIL_SINK_HOST), mesmo com um provedor real configurado no `.env`: nada é enviado de verdade.
 """
 
 import json

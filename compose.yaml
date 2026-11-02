@@ -20,17 +20,18 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET}
-      # E-mail em desenvolvimento: vai para o Mailpit (coletor local, nada sai da máquina). As variáveis
-      # SMTP_* do .env NÃO são lidas aqui de propósito (são as do servidor): assim os testes automáticos,
-      # que cadastram e-mails de mentira, nunca disparam e-mails reais pela sua conta. Para testar o envio
-      # real em desenvolvimento, defina DEV_SMTP_HOST, DEV_SMTP_PORT, DEV_SMTP_USER, DEV_SMTP_PASSWORD e
-      # DEV_SMTP_FROM no .env (e não rode a suíte de interface enquanto estiverem definidas).
-      SMTP_HOST: ${DEV_SMTP_HOST:-mailpit}
-      SMTP_PORT: ${DEV_SMTP_PORT:-1025}
-      SMTP_SECURITY: ${DEV_SMTP_SECURITY:-}
-      SMTP_USER: ${DEV_SMTP_USER:-}
-      SMTP_PASSWORD: ${DEV_SMTP_PASSWORD:-}
-      SMTP_FROM: ${DEV_SMTP_FROM:-datavision@localhost}
+      # E-mail: se o .env tiver SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASSWORD/SMTP_FROM, os e-mails vão de
+      # verdade por esse provedor; senão vão para o Mailpit (coletor local, nada sai da máquina).
+      # MAIL_SINK_*: endereços de mentira (exemplo.com etc., usados pelos testes) vão SEMPRE para o Mailpit,
+      # mesmo com o provedor real configurado. Ver src/core/mailer.py.
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURITY: ${SMTP_SECURITY:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-datavision@localhost}
+      MAIL_SINK_HOST: mailpit
+      MAIL_SINK_PORT: "1025"
     depends_on:
       db:
         condition: service_healthy

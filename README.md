@@ -77,7 +77,7 @@ docker compose up -d
 docker compose --profile test run --rm e2e
 ```
 
-**E-mail em desenvolvimento:** o login em dois passos envia e-mails para o **Mailpit**, um coletor local que sobe junto com o Compose. Veja os códigos em `http://localhost:8025` (nada é entregue de verdade). Os testes de interface leem os códigos de lá. As variáveis `SMTP_*` do `.env` valem só no servidor; para testar um envio real em desenvolvimento use `DEV_SMTP_*` (ver `.env.example`) e não rode a suíte de interface nesse período.
+**E-mail:** o login em dois passos envia um código por e-mail. Sem `SMTP_*` no `.env`, tudo vai para o **Mailpit**, um coletor local que sobe junto com o Compose (códigos em `http://localhost:8025`; nada é entregue de verdade). Com `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` definidos (ver `.env.example`), endereços **reais** recebem o e-mail de verdade; endereços de mentira (`exemplo.com`, `example.com`, `.test` etc., usados pelos testes) continuam indo só para o Mailpit, então a suíte de interface pode rodar com o envio real ativo. Depois de mudar o `.env`: `docker compose up -d app`.
 
 ## Interface nova (React) — desenvolvimento
 
