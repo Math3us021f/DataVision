@@ -1,7 +1,7 @@
 import psutil
 from fastapi import APIRouter, Depends
 
-from src.auth import require_admin
+from src.core.auth import require_admin
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 

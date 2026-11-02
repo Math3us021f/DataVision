@@ -7,7 +7,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from src.db import get_connection
+from src.core.db import get_connection
 from src.main import app
 
 ADMIN_USERNAME = os.environ["ADMIN_USERNAME"]

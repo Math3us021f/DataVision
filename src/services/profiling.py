@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from src.storage import get_minio_client
+from src.core.storage import get_minio_client
 
 HISTOGRAM_BINS = 10
 

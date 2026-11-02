@@ -1,6 +1,6 @@
 import pytest
 
-from src.rate_limit import _failed_attempts
+from src.core.rate_limit import _failed_attempts
 
 
 @pytest.fixture(autouse=True)

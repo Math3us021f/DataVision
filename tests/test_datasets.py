@@ -69,7 +69,7 @@ def test_xlsx_sem_assinatura_zip_e_rejeitado(logged_client):
 
 
 def test_arquivo_grande_demais_e_rejeitado(logged_client):
-    from src.routers.datasets import MAX_UPLOAD_BYTES
+    from src.services.datasets import MAX_UPLOAD_BYTES
 
     conteudo_grande = b"a" * (MAX_UPLOAD_BYTES + 1)
     response = upload(logged_client, "grande.csv", conteudo_grande)

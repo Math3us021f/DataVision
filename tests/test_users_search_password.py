@@ -125,7 +125,7 @@ def test_nao_admin_nao_redefine_senha(admin_client):
 
 
 def test_redefinicao_fica_na_auditoria(admin_client):
-    from src.db import get_connection
+    from src.core.db import get_connection
 
     created, _ = create_user(admin_client)
     admin_client.put(f"/users/{created['id']}/password", json={"new_password": "nova-senha-ok"})

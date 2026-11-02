@@ -2,7 +2,7 @@ import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from src.auth import require_admin
+from src.core.auth import require_admin
 
 router = APIRouter(prefix="/files", tags=["files"])
 

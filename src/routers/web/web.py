@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from src.auth import get_current_user_optional
+from src.core.auth import get_current_user_optional
 
 router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory="src/templates")

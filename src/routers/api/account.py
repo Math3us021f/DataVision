@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 
-from src.auth import (
+from src.core.auth import (
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_SECONDS,
     create_session_token,
@@ -10,8 +10,8 @@ from src.auth import (
     validate_new_password,
     verify_password,
 )
-from src.db import get_connection
-from src.logging_config import logger
+from src.core.db import get_connection
+from src.core.logging_config import logger
 
 router = APIRouter(prefix="/me", tags=["account"])
 

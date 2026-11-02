@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
-from src.auth import get_current_user
-from src.db import get_connection
+from src.core.auth import get_current_user
+from src.core.db import get_connection
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 

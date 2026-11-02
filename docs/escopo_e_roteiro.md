@@ -26,7 +26,15 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
 
 ## Decisões técnicas registradas
 
-- 2026-10-24: **Reorganização de `src/` antes de iniciar o frontend.** Os 5 módulos de rota (`users.py`, `datasets.py`, `files.py`, `logs.py`, `metrics.py`) foram movidos para `src/routers/`, separados da infraestrutura (`auth.py`, `db.py`, `storage.py`, `logging_config.py`, `rate_limit.py`, `profiling.py`), que continua na raiz de `src/`. Motivo: a pasta ia crescer mais com as páginas HTML/CSS/JS do frontend, e misturar tudo no mesmo nível ficaria confuso. Suíte completa (54 testes) confirmada passando depois da reorganização, antes de qualquer código novo.
+- 2026-11-01: **Segunda reorganização de `src/`, em 4 fases, antes de adicionar novas funcionalidades** (a reorganização de 2026-10-24 abaixo foi superada por esta). Motivo: `main.py` acumulando `init_db()` monolítico, routers misturando páginas HTML e rotas de API, e lógica de negócio (ex: exclusão em cascata de dataset) importada de um router para outro. Estrutura final:
+  - **Fase 1:** infraestrutura (`auth.py`, `db.py`, `storage.py`, `logging_config.py`, `rate_limit.py`) movida para `src/core/`.
+  - **Fase 2:** `profiling.py` movido para `src/services/profiling.py`.
+  - **Fase 3:** `src/routers/` dividido em `src/routers/api/` (rotas JSON: `account`, `dashboard`, `datasets`, `files`, `logs`, `metrics`, `users`) e `src/routers/web/` (páginas HTML: `web.py`).
+  - **Fase 4:** lógica de negócio extraída dos routers de `datasets` e `users` para `src/services/datasets.py` e `src/services/users.py` — os routers ficaram só com validação de entrada (Pydantic) e códigos de status HTTP, delegando toda consulta/gravação no banco e regra de negócio para as funções de serviço. Isso eliminou o import cruzado `routers.users` → `routers.datasets` (agora ambos os routers dependem de `services`, nunca um do outro).
+  - **Fora desta reorganização, adiado por decisão explícita:** adoção do Alembic para versionar o schema do Postgres (hoje `init_db()` em `main.py` continua usando `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` inline). Avaliado o custo/risco de migrar agora com dados reais já no banco de dev; decidiu-se tratar como um passo dedicado futuro.
+  - Suíte completa (128 testes) confirmada passando depois de cada uma das 4 fases, antes de avançar para a próxima.
+
+- 2026-10-24: **Reorganização de `src/` antes de iniciar o frontend (superada pela reorganização de 2026-11-01 acima).** Os 5 módulos de rota (`users.py`, `datasets.py`, `files.py`, `logs.py`, `metrics.py`) foram movidos para `src/routers/`, separados da infraestrutura (`auth.py`, `db.py`, `storage.py`, `logging_config.py`, `rate_limit.py`, `profiling.py`), que continua na raiz de `src/`. Motivo: a pasta ia crescer mais com as páginas HTML/CSS/JS do frontend, e misturar tudo no mesmo nível ficaria confuso. Suíte completa (54 testes) confirmada passando depois da reorganização, antes de qualquer código novo.
 
 - 2026-10-24: **MinIO local de dev usa a imagem `cgr.dev/chainguard/minio`**, não `minio/minio` do Docker Hub (bloqueada para pull sem login — mudança de distribuição da própria MinIO). Mesma imagem já usada na produção Ubuntu, mas com bucket e credenciais totalmente separados (gerados agora, só para dev), nunca reaproveitando os de produção. **Atenção:** durante essa decisão, a senha real do MinIO de produção apareceu em texto puro no chat — recomendado trocá-la.
 
@@ -116,14 +124,15 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
 
 ## Próximo passo recomendado
 
-Módulo administrador no frontend (páginas consumindo as APIs já existentes). Depois, retomar o módulo de análise de dados (Etapa 11 — dashboards por regras Python, sem IA generativa até o fluxo determinístico estar validado).
+Reorganização estrutural de `src/` (ver decisão de 2026-11-01) concluída e validada (128 testes passando em cada fase). Retomar o plano de interface: página de auditoria (Etapa 4 do plano de interface) e testes Playwright (Etapa 5), ou avançar para a Etapa 12 do roteiro original (validação do MVP + inspeção do Ubuntu Server, somente leitura).
 
 ## Pendências técnicas menores
 
 - `TestClient`/`starlette` avisam que `httpx` está depreciado em favor de `httpx2` — trocar quando a migração for simples, não é urgente.
 - Aviso de permissão ao criar cache do pytest (`/app/.pytest_cache`) dentro do container — inofensivo (diretório de cache, não afeta resultado dos testes), mas pode ser limpo depois ajustando dono do diretório.
 - Sessão não tem `Secure` no cookie ainda (não há HTTPS em dev) — revisar antes de qualquer exposição além de localhost.
-- `src/db.py` abre uma conexão nova por requisição, sem connection pool — não é falha de segurança, pode virar gargalo de performance se o uso crescer.
+- `src/core/db.py` abre uma conexão nova por requisição, sem connection pool — não é falha de segurança, pode virar gargalo de performance se o uso crescer.
+- Adoção do Alembic para versionar o schema do Postgres foi avaliada e adiada deliberadamente (ver decisão de 2026-11-01) — `init_db()` em `src/main.py` continua com `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` inline.
 - CSRF mitigado por `SameSite=Lax` no cookie de sessão, mas sem token CSRF explícito — revisar quando houver frontend HTML de verdade (Etapa 2 em diante do roteiro original previa HTML/JS simples).
 - Não existe edição de `username`/`is_admin` depois que o usuário é criado (troca e redefinição de senha já existem).
 - O usuário Postgres `datavision_app` (antigo dono das tabelas, ainda superusuário) permanece no banco, usado só para manutenção manual — documentar isso para quem for inspecionar o banco no futuro não se confundir com o usuário da aplicação.

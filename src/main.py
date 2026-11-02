@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from src.auth import (
+from src.core.auth import (
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_SECONDS,
     create_session_token,
@@ -13,18 +13,18 @@ from src.auth import (
     hash_password,
     verify_password,
 )
-from src.db import get_connection
-from src.logging_config import logger, setup_logging
-from src.rate_limit import is_locked_out, register_failed_attempt, reset_attempts
-from src.routers.account import router as account_router
-from src.routers.dashboard import router as dashboard_router
-from src.routers.datasets import router as datasets_router
-from src.routers.files import router as files_router
-from src.routers.logs import router as logs_router
-from src.routers.metrics import router as metrics_router
-from src.routers.users import router as users_router
-from src.routers.web import router as web_router
-from src.storage import ensure_bucket
+from src.core.db import get_connection
+from src.core.logging_config import logger, setup_logging
+from src.core.rate_limit import is_locked_out, register_failed_attempt, reset_attempts
+from src.routers.api.account import router as account_router
+from src.routers.api.dashboard import router as dashboard_router
+from src.routers.api.datasets import router as datasets_router
+from src.routers.api.files import router as files_router
+from src.routers.api.logs import router as logs_router
+from src.routers.api.metrics import router as metrics_router
+from src.routers.api.users import router as users_router
+from src.routers.web.web import router as web_router
+from src.core.storage import ensure_bucket
 
 
 def init_db() -> None:

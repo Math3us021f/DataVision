@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
-from src.auth import require_admin
-from src.logging_config import LOG_FILE_PATH
+from src.core.auth import require_admin
+from src.core.logging_config import LOG_FILE_PATH
 
 router = APIRouter(prefix="/logs", tags=["logs"])
 

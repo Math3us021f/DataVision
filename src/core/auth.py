@@ -4,7 +4,7 @@ import bcrypt
 from fastapi import Cookie, Depends, HTTPException, status
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
-from src.db import get_connection
+from src.core.db import get_connection
 
 MIN_PASSWORD_LENGTH = 8
 
