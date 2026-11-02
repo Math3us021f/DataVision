@@ -43,7 +43,10 @@ def test_me_com_sessao_valida_retorna_usuario(client):
 
     response = client.get("/me")
     assert response.status_code == 200
-    assert response.json() == {"username": ADMIN_USERNAME, "is_admin": True}
+    body = response.json()
+    assert body["username"] == ADMIN_USERNAME
+    assert body["is_admin"] is True
+    assert set(body) == {"username", "is_admin", "display_name", "avatar_color"}  # nada além do necessário (sem hash, sem sessão)
 
 
 def test_logout_invalida_a_sessao(client):

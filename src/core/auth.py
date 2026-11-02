@@ -94,7 +94,7 @@ def get_current_user(session: str | None = Cookie(default=None)) -> dict:
 
     with get_connection() as conn:
         user = conn.execute(
-            "SELECT id, username, is_admin, is_active, session_version FROM users WHERE id = %s",
+            "SELECT id, username, is_admin, is_active, session_version, display_name, preferences FROM users WHERE id = %s",
             (payload["user_id"],),
         ).fetchone()
 

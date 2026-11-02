@@ -195,6 +195,22 @@ curl -s -b cookies.txt -X POST http://localhost:8000/datasets/1/query \
 - Dataset sem perfil → `409`. Coluna inexistente ou agregação incompatível (ex: `sum` em texto) → `422` com a explicação. Chave desconhecida no JSON → `422`. Dataset de outro usuário → `404`. Sem login → `401`.
 - Colunas de data só são reconhecidas em datasets **perfilados depois** desta mudança — reperfile datasets antigos. Formato `dd/mm/aaaa` é lido com dia primeiro; `aaaa-mm-dd` é lido como ISO.
 
+## Minha conta (perfil, acessos e sessões)
+
+```bash
+curl -s -b cookies.txt http://localhost:8000/me/profile
+curl -s -b cookies.txt -X PUT http://localhost:8000/me/profile   -H "Content-Type: application/json"   -d '{"display_name":"Maria Souza","avatar_color":"violet"}'
+curl -s -b cookies.txt http://localhost:8000/me/logins
+curl -s -b cookies.txt -c cookies.txt -X POST http://localhost:8000/me/sessions/revoke-others -w "%{http_code}
+"
+```
+
+- `PUT /me/profile` substitui nome e cor de uma vez; enviar `null`/vazio limpa. Nome: até 60 caracteres, sem caracteres de controle. Cor: `orange`, `green`, `blue`, `violet`, `rose`, `amber`, `teal` ou `slate` (outra → `422`; chave desconhecida, ex. `is_admin` → `422`).
+- `GET /me/profile` traz também `member_since` e `usage` (datasets, espaço, perfilados, dashboards salvos).
+- `GET /me/logins`: últimos 20 acessos da própria conta, do mais novo para o mais antigo — só `success`, `browser` (resumo, ex. "Chrome · Windows") e `created_at`. **Não existe IP.**
+- `revoke-others` responde `204`: as outras sessões passam a receber `401`; a atual continua válida (use `-c cookies.txt` para guardar o cookie novo). Fica na auditoria como `revoke_other_sessions`.
+- Sem login → `401` em todos. Na interface: `http://localhost:8000/app/account`.
+
 ## Dashboard salvo (dono do dataset)
 
 ```bash

@@ -23,6 +23,7 @@ import { StatusDonut } from "@/components/charts/StatusDonut";
 import { UploadsChart } from "@/components/charts/UploadsChart";
 import { SmartLink } from "@/components/SmartLink";
 import { Stat } from "@/components/Stat";
+import { displayNameOf } from "@/components/UserAvatar";
 import { buttonStyles } from "@/components/ui/button";
 import { Card, CardHeader, CardSubtitle, CardTitle } from "@/components/ui/card";
 import { RadialProgress, toneForUsage } from "@/components/ui/radial-progress";
@@ -104,7 +105,7 @@ export default function Home({ me }: { me: Me }) {
       <header className="flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-medium text-muted first-letter:uppercase short:hidden">{todayLabel}</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Olá, {me.username}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Olá, {displayNameOf(me)}</h1>
         </div>
         <div className="flex items-center gap-2">
           <button

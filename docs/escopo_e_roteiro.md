@@ -172,6 +172,16 @@ DataVision Admin (primeira entrega) + módulo de análise de dados (posterior). 
   - 12 testes Playwright novos (36 no total) com números exatos (CSV de 4 linhas/1 duplicada/3 colunas: o painel mostra 4, 1 e 3; idade com "Ausentes: 1 (25.0%)"), envio, recusas, busca, paginação, perfil de pendente → perfilado, exclusão (cancelar/confirmar), **nome de arquivo e cabeçalhos/valores `<img onerror>` aparecem só como texto**, e navegação interna sem recarregar. Sem vazamento horizontal no celular (verificado por captura).
   - A página atual `/meus-datasets` continua no ar até a aprovação.
 
+- 2026-11-02: **Nova interface em React — 3ª tela: Minha conta (`/app/account`). APROVADA pelo usuário.**
+  - **Decisão do usuário: avatar só com iniciais (sem upload de foto)** — evita superfície de ataque de arquivo de usuário e dado pessoal extra (LGPD). A foto ficou fora do escopo por escolha.
+  - Tela em abas (`?aba=perfil|seguranca|atividade`, a aba vale pela URL): **Perfil** (nome de exibição até 60 caracteres com prévia ao vivo, cor do avatar entre 8, conta, "membro desde" e **uso**: datasets, espaço, perfilados e dashboards salvos), **Segurança** (troca de senha com mostrar/ocultar, medidor de força, requisitos e confirmação; **encerrar outras sessões** com confirmação) e **Atividade** (acessos recentes, falhas destacadas).
+  - O nome e a cor aparecem no menu lateral, no cabeçalho da conta e na saudação da Home.
+  - Backend: colunas `users.display_name` e `users.preferences` (JSONB com esquema fixo, base para as preferências das próximas etapas) e tabela `login_events` (ON DELETE CASCADE). `GET/PUT /me/profile`, `GET /me/logins`, `POST /me/sessions/revoke-others` (incrementa `session_version`, reemite o cookie da sessão atual e registra `revoke_other_sessions` na auditoria); `GET /me` ganhou `display_name` e `avatar_color` (adição compatível).
+  - **Privacidade por projeto:** `login_events` guarda **só data, resultado (sucesso/falha) e um resumo do navegador** ("Chrome · Windows") — **nunca IP nem o texto bruto do User-Agent** — e apenas os **últimos 50** acessos por usuário; tentativa com usuário inexistente não gera registro. Um teste garante que a tabela não tem coluna de IP. O log da aplicação (só admin) continua com os dados que já tinha.
+  - Validação no servidor: nome com limite, sem caracteres de controle, cor só da lista, chaves desconhecidas recusadas (422); o endpoint só atua sobre a própria conta e não aceita campos de privilégio. Nome com HTML é guardado como texto e exibido escapado (testado com `<img onerror>` no menu, cabeçalho e saudação).
+  - 25 testes de backend e 13 Playwright novos. A página atual `/account` continua no ar até a aprovação.
+  - Próximas etapas combinadas: preferências de exibição (tema, menu, itens por página, formatos) e preferências de dados (separador/decimal/codificação de CSV, ordem de data), esta última com testes de arquivos reais.
+
 ## Próximo passo recomendado
 
 Etapa 12 em andamento: inventário feito; decidir os pontos abertos do relatório ([etapa12_validacao_mvp.md](etapa12_validacao_mvp.md), seção 6), confirmar a configuração efetiva do SSH (`sudo sshd -T`) e então refinar o plano de deploy (`compose.prod.yaml`, segredos novos, bucket novo no MinIO) para submetê-lo à aprovação.

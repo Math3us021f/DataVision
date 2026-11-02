@@ -28,6 +28,7 @@ from src.routers.api.metrics import router as metrics_router
 from src.routers.api.users import router as users_router
 from src.routers.web.web import router as web_router
 from src.core.storage import ensure_bucket
+from src.services.account import avatar_color_of, record_login_event
 
 
 def init_db() -> None:
@@ -141,6 +142,23 @@ def init_db() -> None:
             )
             """
         )
+        # Perfil do próprio usuário: nome de exibição opcional e preferências (JSONB validado no servidor).
+        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT")
+        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB NOT NULL DEFAULT '{}'::jsonb")
+        # Acessos recentes de cada usuário. De propósito NÃO guarda IP nem o texto do navegador:
+        # só data, resultado e um resumo ("Chrome · Windows"). ON DELETE CASCADE com o usuário.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS login_events (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+                success BOOLEAN NOT NULL,
+                browser TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS login_events_user_idx ON login_events (user_id, id DESC)")
         row = conn.execute("SELECT COUNT(*) AS total FROM users").fetchone()
         if row["total"] == 0:
             admin_username = os.environ["ADMIN_USERNAME"]
@@ -205,6 +223,12 @@ def health_check() -> dict[str, str]:
     }
 
 
+def _record_login(user_id: int, success: bool, request: Request) -> None:
+    with get_connection() as conn:
+        record_login_event(conn, user_id, success, request.headers.get("user-agent"))
+        conn.commit()
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -238,17 +262,21 @@ def login(credentials: LoginRequest, request: Request, response: Response) -> di
         password_ok = verify_password(credentials.password, user["password_hash"])
 
     if not password_ok:
+        if user is not None:
+            _record_login(user["id"], False, request)
         register_failed_attempt(rate_limit_key)
         logger.warning("Login falhou para username=%r", credentials.username)
         raise credenciais_invalidas
 
     if not user["is_active"]:
         # Mesma mensagem genérica do caso de senha errada: não revelamos que a conta existe, mas está desativada.
+        _record_login(user["id"], False, request)
         register_failed_attempt(rate_limit_key)
         logger.warning("Login negado (conta inativa) para username=%r", credentials.username)
         raise credenciais_invalidas
 
     reset_attempts(rate_limit_key)
+    _record_login(user["id"], True, request)
     logger.info("Login bem-sucedido: user_id=%s username=%r", user["id"], credentials.username)
     token = create_session_token(user["id"], user["session_version"])
     set_session_cookie(response, token)
@@ -266,4 +294,6 @@ def me(current_user: dict = Depends(get_current_user)) -> dict:
     return {
         "username": current_user["username"],
         "is_admin": current_user["is_admin"],
+        "display_name": current_user["display_name"],
+        "avatar_color": avatar_color_of(current_user["preferences"]),
     }

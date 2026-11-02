@@ -8,6 +8,7 @@ KNOWN_ACTIONS = [
     "force_delete_user_datasets",
     "reset_password",
     "change_own_password",
+    "revoke_other_sessions",
 ]
 
 

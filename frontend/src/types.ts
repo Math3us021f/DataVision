@@ -1,6 +1,26 @@
+export const AVATAR_COLORS = ["orange", "green", "blue", "violet", "rose", "amber", "teal", "slate"] as const;
+export type AvatarColor = (typeof AVATAR_COLORS)[number];
+
 export interface Me {
   username: string;
   is_admin: boolean;
+  display_name: string | null;
+  avatar_color: AvatarColor | null;
+}
+
+export interface Profile {
+  username: string;
+  is_admin: boolean;
+  display_name: string | null;
+  avatar_color: AvatarColor | null;
+  member_since: string;
+  usage: { datasets: number; storage_bytes: number; profiled: number; dashboards: number };
+}
+
+export interface LoginEvent {
+  success: boolean;
+  browser: string;
+  created_at: string;
 }
 
 export interface UploadDay {

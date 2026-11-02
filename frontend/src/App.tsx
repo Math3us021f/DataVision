@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/hooks/useApi";
 import { ToastProvider } from "@/components/ui/toast";
+import Account from "@/pages/Account";
 import Datasets from "@/pages/Datasets";
 import Home from "@/pages/Home";
 import type { Me } from "@/types";
@@ -33,6 +34,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home me={me.data} />} />
             <Route path="/datasets" element={<Datasets />} />
+            <Route path="/account" element={<Account me={me.data} onSaved={me.reload} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         ) : (

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
+import { UserAvatar, displayNameOf } from "@/components/UserAvatar";
 import { useTheme } from "@/hooks/useTheme";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -33,7 +34,7 @@ interface Item {
 const MAIN: Item[] = [
   { label: "Início", icon: House, href: "/", internal: true },
   { label: "Datasets", icon: FileText, href: "/datasets", internal: true },
-  { label: "Minha conta", icon: KeyRound, href: "/account" },
+  { label: "Minha conta", icon: KeyRound, href: "/account", internal: true },
 ];
 
 const ADMIN: Item[] = [
@@ -152,14 +153,15 @@ export function Sidebar({
         )}
 
         <div className={cn("mt-auto flex items-center gap-2 border-t border-border pt-3", collapsed && "lg:flex-col")}>
-          <span
-            title={me?.username}
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent-strong uppercase"
-          >
-            {me?.username.charAt(0) ?? "?"}
-          </span>
+          {me ? (
+            <span title={displayNameOf(me)} className="shrink-0">
+              <UserAvatar name={displayNameOf(me)} color={me.avatar_color} />
+            </span>
+          ) : (
+            <span className="size-9 shrink-0 rounded-full bg-surface-2" />
+          )}
           <div className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}>
-            <p className="truncate text-sm font-medium">{me?.username ?? "…"}</p>
+            <p id="sidebar-user-name" className="truncate text-sm font-medium">{me ? displayNameOf(me) : "…"}</p>
             <p className="text-xs text-subtle">{me?.is_admin ? "Administrador" : "Usuário"}</p>
           </div>
           <button
