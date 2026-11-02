@@ -93,6 +93,7 @@ services:
     volumes:
       - ./backend:/app
       - ./src/static/app:/app/static_src/app:ro  # interface React gerada (serviço frontend)
+      - ./data:/app/data  # explorador de arquivos
       - ./docs:/docs:ro  # contrato congelado do FastAPI (backend/scripts/contract_diff.py)
     environment:
       SECRET_KEY: ${SECRET_KEY}

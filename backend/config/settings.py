@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "audit",
     "datasets",
     "analytics",
+    "adminpanel",
     "core",
 ]
 

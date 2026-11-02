@@ -34,8 +34,8 @@
 | 5 | Login, logout, `/me`, sessão com inatividade, limite de tentativas, dois passos por e-mail | **feito** |
 | 6 | Usuários, auditoria, conta (perfil, senha, e-mail, sessões) e notificações | **feito** |
 | 7 | Datasets: upload, MinIO, perfilamento, amostra | **feito** |
-| 8 | Consultas, dashboards salvos e painel padrão (o motor de análise é reaproveitado) | a fazer |
-| 9 | Métricas, logs, explorador de arquivos, resumo do painel | a fazer |
+| 8 | Consultas, dashboards salvos e painel padrão (o motor de análise é reaproveitado) | **feito** |
+| 9 | Métricas, logs, explorador de arquivos, resumo do painel | **feito** |
 | 10 | Troca: React com CSRF, suíte Playwright inteira contra o Django, Django na porta 8000, remoção do FastAPI, Dockerfile e `compose.prod.yaml` | a fazer |
 
 ## Modelos (etapa 4)
@@ -108,6 +108,16 @@ Rotas: `GET /login` (a tela), `POST /login`, `POST /login/verify`, `POST /login/
 3. `Exists()` do ORM calcula o `profiled` da listagem numa consulta só; `bulk_create` devolve os ids no Postgres, então colunas e valores frequentes são gravados em duas consultas, não em uma por linha; apagar o dataset apaga perfil, colunas, valores e dashboard **em cascata** (antes: três `DELETE` manuais).
 4. Nos testes, um **MinIO de mentira em memória** substitui o de verdade (testes isolados e rápidos); o código chama `storage.get_minio_client()` pelo módulo, assim um único `monkeypatch` vale em todo lugar. O MinIO real foi validado por `curl`: upload (403 sem CSRF), objeto realmente no bucket com o nome gerado, perfil, amostra e exclusão que remove o objeto.
 5. Perfis de dados continuam com os mesmos números (ex.: linha repetida conta em `duplicate_row_count`, mediana 12,5 de `5,10,10,15,20,100`).
+
+## Consultas, dashboards, painel e administração (etapas 8 e 9)
+
+**Rotas migradas (10 novas; 40 das 49):** `POST /datasets/{id}/query`, `GET /datasets/{id}/suggested-dashboard`, `GET/PUT/DELETE /datasets/{id}/dashboard`, `GET /dashboard/summary`, `GET /metrics/system`, `GET /logs/app`, `GET /files`, `GET /files/content`. As 9 restantes do contrato são páginas (etapa 10).
+
+**Reaproveitado quase sem mudança:** o motor de análise (`analytics/engine.py`, `validator.py`, `suggestions.py`, `schemas.py`, `runtime.py`), só com os `import` ajustados. Novos: `analytics/dashboards.py` (ORM), `adminpanel/` (`files.py` com a defesa contra path traversal, `logtail.py`, `summary.py`).
+
+**Consulta (`analytics/api.py`):** o Django não tem `anyio.fail_after`; a consulta roda num `ThreadPoolExecutor` próprio e a resposta espera `future.result(timeout=15)`. A vaga real continua sendo o semáforo de `run_limited` (no máximo 3 simultâneas): quem não consegue vaga em 5 s recebe **503**; quem estoura o prazo recebe **504** e a thread abandonada segue segurando a vaga até acabar. As threads do `ThreadPoolExecutor` não tocam no banco (o dataset e os tipos são lidos antes).
+
+**Estratégia de testes — o aprendizado mais importante:** em vez de reescrever os testes de HTTP do FastAPI, o adaptador `backend/tests/compat.py` (um `TestClient` com a mesma interface, em cima do cliente de teste do Django) os faz rodar **contra o Django, quase sem mudança** (`backend/tests/contract/`). São 85 testes de comportamento (motor de análise com números conferidos à mão, painel sugerido, dashboards salvos, resumo, arquivos, métricas, limites 503/504 e cache) que passaram de primeira ou com ajustes mínimos: é a prova de paridade. Foram deixados de fora os testes que dependem de detalhes internos do FastAPI (`src.core.db`, `src.main`...): o que eles cobriam já tem testes nativos do Django (login, sessão, dois passos, usuários, auditoria, conta, datasets).
 
 ## Comportamentos a reproduzir (paridade)
 

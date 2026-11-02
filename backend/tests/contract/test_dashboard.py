@@ -1,0 +1,89 @@
+"""Painel da home: números exatos e separação de dados por perfil."""
+
+import io
+import os
+import uuid
+
+import pytest
+from tests.compat import TestClient
+
+app = None
+
+ADMIN_USERNAME = os.environ["ADMIN_USERNAME"]
+ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
+
+
+@pytest.fixture
+def admin_client():
+    with TestClient(app) as c:
+        c.post("/login", json={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD})
+        yield c
+
+
+@pytest.fixture
+def user_client(admin_client):
+    username = f"dash_{uuid.uuid4().hex[:8]}"
+    admin_client.post("/users", json={"username": username, "password": "senha-123-x"})
+    client = TestClient(app)
+    client.post("/login", json={"username": username, "password": "senha-123-x"})
+    return client
+
+
+def upload(client, name="dados.csv", content=b"a,b\n1,2\n"):
+    response = client.post("/datasets/upload", files={"file": (name, io.BytesIO(content), "text/csv")})
+    return response.json()["id"]
+
+
+def test_usuario_novo_tem_painel_zerado(user_client):
+    body = user_client.get("/dashboard/summary").json()
+    assert body["mine"] == {"datasets": 0, "storage_bytes": 0, "profiled": 0}
+    assert body["recent_datasets"] == []
+
+
+def test_numeros_refletem_os_proprios_datasets(user_client):
+    dataset_id = upload(user_client)
+    upload(user_client, "outro.csv", b"x\n1\n")
+    user_client.post(f"/datasets/{dataset_id}/profile")
+
+    body = user_client.get("/dashboard/summary").json()
+    assert body["mine"] == {"datasets": 2, "storage_bytes": 12, "profiled": 1}
+    assert body["recent_datasets"][0]["original_name"] == "outro.csv"
+
+
+def test_usuario_nao_ve_datasets_de_outros(admin_client, user_client):
+    upload(admin_client, "do_admin.csv")
+    body = user_client.get("/dashboard/summary").json()
+    assert body["mine"]["datasets"] == 0
+    assert body["recent_datasets"] == []
+
+
+def test_usuario_comum_nao_recebe_dados_de_admin(user_client):
+    assert "admin" not in user_client.get("/dashboard/summary").json()
+
+
+def test_admin_recebe_resumo_do_sistema(admin_client):
+    admin_client.post("/users", json={"username": f"aud_{uuid.uuid4().hex[:8]}", "password": "senha-123-x"})  # gera um evento de auditoria
+    admin = admin_client.get("/dashboard/summary").json()["admin"]
+    assert admin["users"]["total"] == admin["users"]["active"] + admin["users"]["inactive"]
+    assert admin["recent_audit"]
+    assert "password_hash" not in str(admin)
+
+
+def test_anonimo_recebe_401():
+    with TestClient(app) as anon:
+        assert anon.get("/dashboard/summary").status_code == 401
+
+
+def test_envios_por_dia_cobrem_sete_dias_e_contam_so_os_proprios(admin_client, user_client):
+    upload(admin_client, "do_admin.csv")  # não pode aparecer para o outro usuário
+    vazio = user_client.get("/dashboard/summary").json()["uploads_by_day"]
+    assert len(vazio) == 7
+    assert [d["day"] for d in vazio] == sorted(d["day"] for d in vazio)  # do mais antigo para hoje
+    assert all(d["count"] == 0 for d in vazio)
+
+    upload(user_client)
+    upload(user_client, "outro.csv", b"x\n1\n")
+    dias = user_client.get("/dashboard/summary").json()["uploads_by_day"]
+    assert len(dias) == 7
+    assert dias[-1]["count"] == 2  # hoje
+    assert sum(d["count"] for d in dias) == 2
